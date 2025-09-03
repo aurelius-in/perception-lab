@@ -238,7 +238,27 @@ def main() -> None:
 
     with tab_fusion:
         st.subheader("Fusion")
-        st.caption("KITTI projection viewer will be added here.")
+        st.caption("KITTI LiDAR → camera projection (single frame)")
+        base = st.text_input("KITTI frame dir", value="data/kitti_frame")
+        if st.button("Project points"):
+            try:
+                from app.pipelines.fusion_projection import load_kitti_and_project
+                from PIL import Image
+                import numpy as np
+                img_path = Path(base) / "image.png"
+                if not img_path.exists():
+                    st.warning("Missing image.png in the specified directory.")
+                else:
+                    points, pixels = load_kitti_and_project(Path(base))
+                    im = Image.open(img_path)
+                    arr = np.array(im).copy()
+                    # Draw small dots
+                    for x, y in pixels.astype(int):
+                        if 0 <= y < arr.shape[0] and 0 <= x < arr.shape[1]:
+                            arr[y, x] = [2, 171, 193]
+                    st.image(arr, caption="Projected points", use_column_width=True)
+            except Exception as e:
+                st.warning(f"Fusion projection failed: {e}")
 
 
 if __name__ == "__main__":
