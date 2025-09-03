@@ -137,8 +137,12 @@ def evaluate(req: EvaluateRequest) -> dict:
 
 @app.post("/report")
 def report(req: ReportRequest) -> dict:
-    # Stub report path
-    return {"report_path": f"runs/{req.run_id}/report.pdf"}
+    # Build report using report service
+    from .report import build_pdf_report
+    run_dir = Path("runs") / req.run_id
+    run_dir.mkdir(parents=True, exist_ok=True)
+    path = build_pdf_report(run_dir)
+    return {"report_path": str(path)}
 
 
 @app.get("/metrics")

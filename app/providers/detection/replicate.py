@@ -27,30 +27,22 @@ class ReplicateDetector:
     def infer(self, image_b64: str) -> List[Detection]:
         if not self.token:
             return []
-        # Minimal call sketch; replace with actual Replicate model endpoint as needed
-        # This is intentionally conservative to avoid failures if unset
         try:
             headers = {"Authorization": f"Token {self.token}", "Content-Type": "application/json"}
-            # Pseudo endpoint; adapt per your model provider
             url = "https://api.replicate.com/v1/predictions"
-            payload: Dict[str, Any] = {
-                "version": self.model,
-                "input": {"image": image_b64}
-            }
+            # Replicate uses model version hashes; allow users to pass either repo/model or version
+            version = self.model
+            payload: Dict[str, Any] = {"version": version, "input": {"image": image_b64}}
             resp = requests.post(url, headers=headers, json=payload, timeout=30)
-            if resp.status_code >= 400:
-                return []
-            data = resp.json()
-            # The output parsing is model-specific; return empty if unknown
+            data = resp.json() if resp.ok else {}
             outputs = data.get("output") or []
             dets: List[Detection] = []
             for o in outputs:
                 try:
-                    dets.append(Detection(
-                        x1=float(o.get("x1", 0)), y1=float(o.get("y1", 0)),
-                        x2=float(o.get("x2", 0)), y2=float(o.get("y2", 0)),
-                        score=float(o.get("score", 0)), cls=str(o.get("class", "object"))
-                    ))
+                    x1 = float(o.get("x1", 0)); y1 = float(o.get("y1", 0))
+                    x2 = float(o.get("x2", 0)); y2 = float(o.get("y2", 0))
+                    score = float(o.get("score", 0)); cls = str(o.get("class", "object"))
+                    dets.append(Detection(x1=x1, y1=y1, x2=x2, y2=y2, score=score, cls=cls))
                 except Exception:
                     continue
             return dets
