@@ -5,6 +5,9 @@ from pathlib import Path
 
 import streamlit as st
 import requests
+import threading
+import json as _json
+from urllib.parse import urlencode
 
 
 def get_logo_path() -> Path:
@@ -97,13 +100,34 @@ def main() -> None:
             pause = st.button("Pause")
             reset = st.button("Reset")
 
-        st.caption("Overlays and streaming will appear here in later steps.")
-        if start:
+        st.caption("WebSocket stream (stub) will print events below.")
+        log_box = st.empty()
+
+        def _run_ws():
             try:
-                resp = requests.post(f"{api_base}/run_video", json={"video_path": video, "profile": profile}, timeout=5)
-                st.success(f"Requested run: {resp.json()}")
+                from websocket import create_connection
+            except Exception as e:  # dependency missing
+                log_box.warning(f"websocket-client not installed: {e}")
+                return
+            try:
+                qs = urlencode({"video_path": video, "profile": profile})
+                ws = create_connection(f"{api_base.replace('http', 'ws')}/ws/run_video?{qs}")
+                messages = []
+                while True:
+                    msg = ws.recv()
+                    if not msg:
+                        break
+                    try:
+                        messages.append(_json.loads(msg))
+                    except Exception:
+                        messages.append({"raw": msg})
+                    # show only last few
+                    log_box.json(messages[-5:])
             except Exception as e:
-                st.warning(f"API not reachable yet: {e}")
+                log_box.warning(f"WS error: {e}")
+
+        if start:
+            threading.Thread(target=_run_ws, daemon=True).start()
 
     with tab_eval:
         st.subheader("Evaluate")
