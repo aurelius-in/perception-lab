@@ -15,6 +15,7 @@ from .storage import RunRegistry
 from app.utils.config import load_providers_config
 from app.providers.detection.replicate import ReplicateDetector
 from app.utils.viz import draw_boxes
+from app.utils.timing import StageTimer, timed
 
 
 app = FastAPI(title="Perception Ops Lab API", version="0.1.0")
@@ -30,7 +31,7 @@ def health() -> dict:
 
 @app.post("/run_frame")
 def run_frame(req: RunFrameRequest) -> dict:
-    # Stub response matching contract shape
+    # Process a single frame and persist artifacts
     run_id = registry.ensure_run()
     # Minimal provider wiring
     providers = load_providers_config()
@@ -38,19 +39,21 @@ def run_frame(req: RunFrameRequest) -> dict:
     det_provider = det_cfg.get("provider", "replicate")
     det_model = det_cfg.get("model", "ultralytics/yolov8")
     boxes = []
+    timer = StageTimer()
     if det_provider == "replicate":
-        det = ReplicateDetector(det_model)
-        boxes = [
-            {
-                "x1": d.x1,
-                "y1": d.y1,
-                "x2": d.x2,
-                "y2": d.y2,
-                "score": d.score,
-                "cls": d.cls,
-            }
-            for d in det.infer(req.image_b64)
-        ]
+        with timed(timer, "model"):
+            det = ReplicateDetector(det_model)
+            boxes = [
+                {
+                    "x1": d.x1,
+                    "y1": d.y1,
+                    "x2": d.x2,
+                    "y2": d.y2,
+                    "score": d.score,
+                    "cls": d.cls,
+                }
+                for d in det.infer(req.image_b64)
+            ]
 
     # Decode input and produce annotated overlay if possible
     annotated_b64 = None
@@ -78,16 +81,25 @@ def run_frame(req: RunFrameRequest) -> dict:
                 out_path.write_bytes(jpg_bytes)
                 annotated_path = str(out_path)
 
+    # Export basic metrics
+    if "model" in timer.timings_ms:
+        metrics.latency_model_ms.observe(timer.timings_ms["model"]) 
+
+    total_ms = sum(timer.timings_ms.values()) or 1e-6
+    fps_val = 1000.0 / total_ms
+
     event = {
         "boxes": boxes,
         "masks": [],
         "tracks": [],
         "ocr": [],
-        "timings": {"pre": 0.0, "model": 0.0, "post": 0.0},
+        "timings": {
+            "model": round(timer.timings_ms.get("model", 0.0), 2),
+        },
         "frame_id": 0,
         "run_id": run_id,
         "ts": datetime.now(timezone.utc).isoformat(),
-        "fps": 0.0,
+        "fps": fps_val,
         "provider_provenance": {"detector": f"replicate:{det_model}", "ocr": "gcv"},
         "errors": [],
         "annotated_path": annotated_path,
