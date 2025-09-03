@@ -14,8 +14,9 @@ from .metrics import get_metrics_registry
 from .storage import RunRegistry
 from app.utils.config import load_providers_config
 from app.providers.detection.replicate import ReplicateDetector
-from app.utils.viz import draw_boxes
+from app.utils.viz import draw_boxes, draw_track_ids
 from app.utils.timing import StageTimer, timed
+from app.providers.tracking.bytetrack import SimpleTracker
 
 
 app = FastAPI(title="Perception Ops Lab API", version="0.1.0")
@@ -68,6 +69,7 @@ def run_frame(req: RunFrameRequest) -> dict:
     if img is not None and len(boxes) > 0:
         box_tuples = [(b["x1"], b["y1"], b["x2"], b["y2"]) for b in boxes]
         vis = draw_boxes(img, box_tuples)
+        vis = draw_track_ids(vis, tracks)
         ok, buf = cv2.imencode(".jpg", vis)
         if ok:
             jpg_bytes = buf.tobytes()
@@ -81,6 +83,9 @@ def run_frame(req: RunFrameRequest) -> dict:
                 out_path.write_bytes(jpg_bytes)
                 annotated_path = str(out_path)
 
+    # Simple tracking stub
+    tracks = SimpleTracker().update(boxes)
+
     # Export basic metrics
     if "model" in timer.timings_ms:
         metrics.latency_model_ms.observe(timer.timings_ms["model"]) 
@@ -91,7 +96,7 @@ def run_frame(req: RunFrameRequest) -> dict:
     event = {
         "boxes": boxes,
         "masks": [],
-        "tracks": [],
+        "tracks": tracks,
         "ocr": [],
         "timings": {
             "model": round(timer.timings_ms.get("model", 0.0), 2),

@@ -6,7 +6,8 @@ class EvaluatorAgent:
         self.config = config
 
     def evaluate(self, dataset_path: str, tasks: list[str]) -> dict:
-        # Placeholder IoU and mAP computation outlines
+        # Placeholder IoU and mAP computation outlines using utils.metrics
+        from app.utils.metrics import iou_xyxy, map50_placeholder  # noqa: F401
         iou = 0.0 if "seg" in tasks else None
         map50 = 0.0 if "det" in tasks else None
         idf1 = 0.0 if "track" in tasks else None

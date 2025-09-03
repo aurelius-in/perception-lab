@@ -14,3 +14,12 @@ def draw_boxes(image: np.ndarray, boxes: List[Tuple[int, int, int, int]], color=
     return out
 
 
+def draw_track_ids(image: np.ndarray, tracks: List[dict]) -> np.ndarray:
+    out = image.copy()
+    for t in tracks:
+        x1, y1 = int(t.get("x1", 0)), int(t.get("y1", 0))
+        tid = str(t.get("id", "?"))
+        cv2.putText(out, f"ID {tid}", (x1, max(0, y1 - 5)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1, cv2.LINE_AA)
+    return out
+
+
