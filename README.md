@@ -1,6 +1,6 @@
 
 <p align="center">
-  <img src="ui/assets/logo.svg" alt="PerceptionLab" width="360" />
+  <img src="assets/pl-ani.gif" alt="PerceptionLab" width="360" />
 </p>
 
 # PerceptionLab

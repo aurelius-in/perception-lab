@@ -11,8 +11,8 @@ from urllib.parse import urlencode
 
 
 def get_logo_path() -> Path:
-    # Resolve path to assets/logo.svg relative to this file
-    return Path(__file__).resolve().parents[1] / "ui" / "assets" / "logo.svg"
+    # Resolve path to assets/pl-ani.gif relative to this file
+    return Path(__file__).resolve().parents[1] / "assets" / "pl-ani.gif"
 
 
 def inject_base_styles() -> None:
