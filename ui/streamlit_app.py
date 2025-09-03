@@ -112,9 +112,9 @@ def main() -> None:
         st.subheader("Run")
         col1, col2, col3 = st.columns([2, 1, 1])
         with col1:
-            video = st.selectbox("Video", options=["data/samples/day.mp4", "data/samples/night.mp4"]) 
+            video = st.radio("Video", options=["data/samples/day.mp4", "data/samples/night.mp4"], horizontal=True)
         with col2:
-            profile = st.selectbox("Profile", options=["realtime", "accuracy"], index=0)
+            profile = st.radio("Profile", options=["realtime", "accuracy"], horizontal=True, index=0)
         with col3:
             start = st.button("Start")
             pause = st.button("Pause")
@@ -225,9 +225,9 @@ def main() -> None:
         st.subheader("Single-frame detection test")
         uploaded = st.file_uploader("Upload image (jpg/png)", type=["jpg","jpeg","png"])
         with st.expander("Provider override (optional)"):
-            det_provider = st.selectbox("Detection provider", ["default","replicate","hf","roboflow"], index=0)
+            det_provider = st.radio("Detection provider", ["default","replicate","hf","roboflow"], horizontal=True, index=0)
             det_model = st.text_input("Detector model/version (provider-specific)", value="ultralytics/yolov8")
-            ocr_provider = st.selectbox("OCR provider", ["default","replicate","gcv","azure","textract"], index=0)
+            ocr_provider = st.radio("OCR provider", ["default","replicate","gcv","azure","textract"], horizontal=True, index=0)
             ocr_version = st.text_input("OCR version (Replicate PaddleOCR)", value="")
         if uploaded and st.button("Run /run_frame"):
             import base64
