@@ -69,9 +69,14 @@ def run_frame(req: RunFrameRequest) -> dict:
         if ok:
             jpg_bytes = buf.tobytes()
             annotated_b64 = base64.b64encode(jpg_bytes).decode("utf-8")
-            out_path = Path("runs") / run_id / f"annotated_{0:03d}.jpg"
-            out_path.write_bytes(jpg_bytes)
-            annotated_path = str(out_path)
+            run_dir = Path("runs") / run_id
+            run_dir.mkdir(parents=True, exist_ok=True)
+            existing = sorted(run_dir.glob("annotated_*.jpg"))
+            if len(existing) < 3:
+                next_idx = len(existing)
+                out_path = run_dir / f"annotated_{next_idx:03d}.jpg"
+                out_path.write_bytes(jpg_bytes)
+                annotated_path = str(out_path)
 
     event = {
         "boxes": boxes,
@@ -101,16 +106,19 @@ def run_video(req: RunVideoRequest) -> JSONResponse:
 
 @app.post("/evaluate")
 def evaluate(req: EvaluateRequest) -> dict:
-    # Minimal stub metrics
-    return {
-        "metrics": {
-            "det": {"map50": 0.0},
-            "seg": {"miou": 0.0},
-            "track": {"idf1": 0.0},
-            "ocr": {"acc": 0.0},
-        },
-        "plots": [],
+    # Write placeholder metrics to runs/<id>/metrics.json and return
+    run_id = registry.last_run_id() or registry.ensure_run()
+    metrics_out = {
+        "det": {"map50": 0.0} if "det" in req.tasks else {},
+        "seg": {"miou": 0.0} if "seg" in req.tasks else {},
+        "track": {"idf1": 0.0} if "track" in req.tasks else {},
+        "ocr": {"acc": 0.0} if "ocr" in req.tasks else {},
     }
+    result = {"metrics": metrics_out, "plots": [], "run_id": run_id, "dataset": req.dataset}
+    run_dir = Path("runs") / run_id
+    run_dir.mkdir(parents=True, exist_ok=True)
+    (run_dir / "metrics.json").write_text(json.dumps(result, indent=2), encoding="utf-8")
+    return result
 
 
 @app.post("/report")
