@@ -227,6 +227,8 @@ def main() -> None:
         with st.expander("Provider override (optional)"):
             det_provider = st.selectbox("Detection provider", ["default","replicate","hf","roboflow"], index=0)
             det_model = st.text_input("Detector model/version (provider-specific)", value="ultralytics/yolov8")
+            ocr_provider = st.selectbox("OCR provider", ["default","replicate","gcv","azure","textract"], index=0)
+            ocr_version = st.text_input("OCR version (Replicate PaddleOCR)", value="")
         if uploaded and st.button("Run /run_frame"):
             import base64
             img_b64 = base64.b64encode(uploaded.read()).decode("utf-8")
@@ -235,6 +237,11 @@ def main() -> None:
                     override = None
                     if det_provider != "default":
                         override = {"detection": {"provider": det_provider, "model": det_model}}
+                    if ocr_provider != "default":
+                        override = override or {}
+                        override.update({"ocr": {"provider": ocr_provider}})
+                        if ocr_provider == "replicate" and ocr_version:
+                            override["ocr"]["version"] = ocr_version
                     overlay_opts = {
                         "class_include": [c.strip() for c in class_filter.split(",") if c.strip()],
                         "mask_opacity": mask_opacity,
