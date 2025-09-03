@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import time
 from pathlib import Path
+import os
 
 import streamlit as st
 import requests
@@ -44,6 +45,42 @@ def inject_base_styles() -> None:
 
         /* Hotkeys hint */
         .hotkeys { color: #8fbac0; font-size: 12px; }
+
+        /* Tabs: larger, distinct, high-contrast */
+        .stTabs { margin-top: 6px; }
+        .stTabs [data-baseweb="tab-list"] {
+            gap: 10px;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            padding-bottom: 6px;
+        }
+        .stTabs [data-baseweb="tab"] {
+            font-family: "Segoe UI", "Inter", system-ui, -apple-system, sans-serif;
+            font-weight: 700;
+            font-size: 1.25rem; /* larger */
+            letter-spacing: 0.02em;
+            color: #cfeaf0;
+            padding: 10px 16px;
+            border-radius: 12px 12px 0 0;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.08);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.15) inset;
+            transition: all 160ms ease-in-out;
+        }
+        .stTabs [data-baseweb="tab"]:hover {
+            color: #e6fbfe;
+            background: rgba(2,171,193,0.12);
+            border-color: rgba(2,171,193,0.25);
+        }
+        .stTabs [aria-selected="true"] {
+            color: #02ABC1 !important;
+            background: linear-gradient(180deg, rgba(2,171,193,0.22), rgba(2,171,193,0.06));
+            border-color: rgba(2,171,193,0.45);
+            box-shadow: 0 0 0 1px rgba(2,171,193,0.25), 0 8px 18px rgba(2,171,193,0.12);
+        }
+        .stTabs [data-baseweb="tab"]:focus-visible {
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(2,171,193,0.55);
+        }
         </style>
         """,
         unsafe_allow_html=True,
@@ -62,10 +99,16 @@ def show_splash(logo_path: Path, duration_seconds: float = 1.8) -> None:
 
 
 def render_top_banner(logo_path: Path) -> None:
+    import base64
+    try:
+        b64 = base64.b64encode(logo_path.read_bytes()).decode("utf-8")
+        src = f"data:image/gif;base64,{b64}"
+    except Exception:
+        src = ""
     st.markdown(
         f"""
         <div class="top-banner">
-            <img src="file://{logo_path.as_posix()}" alt="PerceptionLab" />
+            <img src="{src}" alt="PerceptionLab" />
         </div>
         """,
         unsafe_allow_html=True,
@@ -77,6 +120,20 @@ def main() -> None:
 
     inject_base_styles()
 
+    # API base default + connectivity badge
+    def _default_api_base() -> str:
+        return os.getenv("API_BASE_URL", "http://localhost:8000")
+
+    if "api_base" not in st.session_state:
+        st.session_state.api_base = _default_api_base()
+
+    def _ping_api(base: str) -> bool:
+        try:
+            r = requests.get(f"{base}/health", timeout=2)
+            return r.ok
+        except Exception:
+            return False
+
     logo_path = get_logo_path()
     if not st.session_state.get("splash_done", False):
         show_splash(logo_path)
@@ -85,8 +142,18 @@ def main() -> None:
 
     render_top_banner(logo_path)
 
-    st.title("Perception Ops Lab — Agentic (Cloud-First)")
-    st.caption("Space = play/pause · ←/→ seek · Toggles: boxes/tracks/OCR")
+    # Connection badge row (small)
+    _ok = _ping_api(st.session_state.api_base)
+    _badge = "🟢 Connected" if _ok else "🔴 Offline"
+    st.markdown(
+        f"""
+        <div style="display:flex;justify-content:flex-end;align-items:center;font-size:12px;opacity:.9;">
+          <span>{_badge}</span>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
     # Inject minimal JS hotkeys for hints (Streamlit limitation for full control)
     st.markdown(
         """
@@ -101,8 +168,20 @@ def main() -> None:
         unsafe_allow_html=True,
     )
 
-    api_base = st.sidebar.text_input("API base URL", value="http://localhost:8000")
-    st.sidebar.caption("Set FastAPI base URL")
+    # Advanced settings (collapsed)
+    with st.sidebar.expander("Settings (Advanced)", expanded=False):
+        ENVIRONMENTS = {
+            "Local": "http://localhost:8000",
+            "Docker (compose network)": "http://api:8000",
+            # "Remote": "https://your-remote-api.example.com",
+        }
+        env_choice = st.selectbox("Environment", list(ENVIRONMENTS.keys()), index=0)
+        st.session_state.api_base = ENVIRONMENTS[env_choice]
+        manual = st.text_input("Override base URL", value=st.session_state.api_base)
+        st.session_state.api_base = manual
+        st.caption("Changes apply immediately.")
+
+    api_base = st.session_state.api_base
 
     tab_run, tab_eval, tab_metrics, tab_reports, tab_fusion, tab_use_cases = st.tabs(
         ["Run", "Evaluate", "Metrics", "Reports", "Fusion", "Use Cases"]
@@ -112,18 +191,49 @@ def main() -> None:
         st.subheader("Run")
         col1, col2, col3 = st.columns([2, 1, 1])
         with col1:
-            video = st.radio("Video", options=["data/samples/day.mp4", "data/samples/night.mp4"], horizontal=True)
+            # GIF previews + radio selector
+            assets_dir = Path(__file__).resolve().parents[1] / "assets"
+            st.session_state.setdefault("video_choice", "data/samples/day.mp4")
+
+            pc1, pc2 = st.columns(2)
+            with pc1:
+                _day = assets_dir / "day.gif"
+                if _day.exists():
+                    st.image(str(_day), width=300, caption="Day (15s)")
+                if st.button("Select Day", key="btn_day"):
+                    st.session_state["video_choice"] = "data/samples/day.mp4"
+            with pc2:
+                _night = assets_dir / "night.gif"
+                if _night.exists():
+                    st.image(str(_night), width=300, caption="Night (20s)")
+                if st.button("Select Night", key="btn_night"):
+                    st.session_state["video_choice"] = "data/samples/night.mp4"
+
+            video = st.radio(
+                "Video",
+                options=["data/samples/day.mp4", "data/samples/night.mp4"],
+                horizontal=True,
+                key="video_choice",
+            )
         with col2:
             profile = st.radio("Profile", options=["realtime", "accuracy"], horizontal=True, index=0)
         with col3:
-            start = st.button("Start")
-            pause = st.button("Pause")
-            reset = st.button("Reset")
+            c1, c2, c3 = st.columns([1, 1, 1])
+            with c1:
+                start = st.button("▶", key="start_btn", help="Start")
+            with c2:
+                pause = st.button("⏸", key="pause_btn", help="Pause")
+            with c3:
+                reset = st.button("⟲", key="reset_btn", help="Reset")
 
         with st.expander("Overlays & thresholds", expanded=True):
-            show_boxes = st.checkbox("Boxes", value=True)
-            show_tracks = st.checkbox("Tracks", value=True)
-            show_ocr = st.checkbox("OCR", value=True)
+            ol1, ol2, ol3 = st.columns(3)
+            with ol1:
+                show_boxes = st.checkbox("Boxes", value=True)
+            with ol2:
+                show_tracks = st.checkbox("Tracks", value=True)
+            with ol3:
+                show_ocr = st.checkbox("OCR", value=True)
             mask_opacity = st.slider("Mask opacity", 0.0, 1.0, 0.35, 0.05, help="Transparency of segmentation overlays")
             colt1, colt2 = st.columns(2)
             with colt1:
@@ -247,6 +357,9 @@ def main() -> None:
                         "mask_opacity": mask_opacity,
                         "conf_thresh": conf_thresh,
                         "nms_iou": nms_iou,
+                        "show_boxes": show_boxes,
+                        "show_tracks": show_tracks,
+                        "show_ocr": show_ocr,
                     }
                     payload = {"image_b64": img_b64, "profile": profile, "provider_override": override, "overlay_opts": overlay_opts}
                     resp = requests.post(f"{api_base}/run_frame", json=payload, timeout=30)
