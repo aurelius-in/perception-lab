@@ -23,3 +23,12 @@ def draw_track_ids(image: np.ndarray, tracks: List[dict]) -> np.ndarray:
     return out
 
 
+def overlay_soft_masks(image: np.ndarray, masks: List[np.ndarray], color=(2, 171, 193), alpha: float = 0.35) -> np.ndarray:
+    out = image.copy()
+    overlay = image.copy()
+    bgr = (int(color[2]), int(color[1]), int(color[0]))
+    for m in masks:
+        overlay[m > 0] = bgr
+    return cv2.addWeighted(overlay, alpha, out, 1 - alpha, 0)
+
+

@@ -11,8 +11,8 @@ from urllib.parse import urlencode
 
 
 def get_logo_path() -> Path:
-    # Resolve path to assets/pl-ani.gif relative to this file
-    return Path(__file__).resolve().parents[1] / "assets" / "pl-ani.gif"
+    # Resolve path to assets/logo.svg relative to this file
+    return Path(__file__).resolve().parents[1] / "ui" / "assets" / "logo.svg"
 
 
 def inject_base_styles() -> None:
@@ -35,6 +35,7 @@ def inject_base_styles() -> None:
             padding: 8px 0 12px 0;
         }
         .top-banner img { max-height: 64px; }
+        .stButton>button { transition: all 200ms ease-in-out; border-radius: 8px; }
 
         /* Centering helpers */
         .center { display: flex; align-items: center; justify-content: center; }
@@ -59,7 +60,7 @@ def render_top_banner(logo_path: Path) -> None:
     st.markdown(
         f"""
         <div class="top-banner">
-            <img src="file://{logo_path.as_posix()}" alt="Perception Ops Lab" />
+            <img src="file://{logo_path.as_posix()}" alt="PerceptionLab" />
         </div>
         """,
         unsafe_allow_html=True,
@@ -172,15 +173,15 @@ def main() -> None:
             try:
                 rt = requests.post(f"{api_base}/run_frame", json={"image_b64": img_b64, "profile": "realtime"}, timeout=30).json()
                 acc = requests.post(f"{api_base}/run_frame", json={"image_b64": img_b64, "profile": "accuracy"}, timeout=30).json()
-                col_rt, col_acc = st.columns(2)
-                with col_rt:
-                    st.caption("Realtime")
-                    if rt.get("annotated_b64"):
-                        st.image(rt["annotated_b64"], use_column_width=True)
-                with col_acc:
-                    st.caption("Accuracy")
-                    if acc.get("annotated_b64"):
-                        st.image(acc["annotated_b64"], use_column_width=True)
+                from streamlit_image_comparison import image_comparison
+                if rt.get("annotated_b64") and acc.get("annotated_b64"):
+                    image_comparison(
+                        img1=rt["annotated_b64"],
+                        img2=acc["annotated_b64"],
+                        label1="Realtime",
+                        label2="Accuracy",
+                        width=700,
+                    )
             except Exception as e:
                 st.warning(f"Compare failed: {e}")
 
