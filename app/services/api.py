@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from fastapi import FastAPI, Response, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, PlainTextResponse
 import json
 from datetime import datetime, timezone
@@ -22,6 +23,14 @@ from app.providers.ocr.replicate_paddleocr import ReplicatePaddleOcr
 
 
 app = FastAPI(title="Perception Ops Lab API", version="0.1.0")
+
+# Enable CORS for local Streamlit UI
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:8501", "http://127.0.0.1:8501"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 registry = RunRegistry()
 metrics = get_metrics_registry()
@@ -95,6 +104,8 @@ def run_frame(req: RunFrameRequest) -> dict:
                 vis = overlay_soft_masks(vis, bin_masks)
         except Exception:
             pass
+        # Simple tracking stub computed before drawing track IDs
+        tracks = SimpleTracker().update(boxes)
         vis = draw_track_ids(vis, tracks)
         # OCR labels if configured (Replicate PaddleOCR)
         ocr_items = []
@@ -131,8 +142,9 @@ def run_frame(req: RunFrameRequest) -> dict:
     if class_include:
         boxes = [b for b in boxes if b.get("cls") in class_include]
 
-    # Simple tracking stub
-    tracks = SimpleTracker().update(boxes)
+    # Simple tracking already computed above when img is not None; ensure defined
+    if 'tracks' not in locals():
+        tracks = SimpleTracker().update(boxes)
 
     # Export basic metrics
     if "model" in timer.timings_ms:
