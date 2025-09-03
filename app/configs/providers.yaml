@@ -1,0 +1,15 @@
+detection:
+  provider: replicate
+  model: "ultralytics/yolov8"
+  concurrency: 2
+segmentation:
+  provider: hf
+  model: "nvidia/segformer-b0-finetuned-ade-512-512"
+ocr:
+  provider: gcv
+tracking:
+  provider: bytetrack
+llm_notes:
+  provider: bedrock
+
+

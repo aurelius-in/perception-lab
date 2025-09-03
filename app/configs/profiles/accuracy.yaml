@@ -1,0 +1,11 @@
+input_size: 1024
+confidence_thresh: 0.25
+nms_iou: 0.6
+max_fps: 12
+render:
+  show_boxes: true
+  show_masks: true
+  show_tracks: true
+  show_ocr: true
+
+

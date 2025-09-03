@@ -1,0 +1,7 @@
+{
+  "title": "Perception Metrics",
+  "panels": [
+    { "type": "graph", "title": "FPS", "targets": [{"expr": "fps"}] },
+    { "type": "histogram", "title": "Model Latency (ms)", "targets": [{"expr": "latency_model_ms_bucket"}] }
+  ]
+}

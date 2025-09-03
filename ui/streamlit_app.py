@@ -4,6 +4,7 @@ import time
 from pathlib import Path
 
 import streamlit as st
+import requests
 
 
 def get_logo_path() -> Path:
@@ -76,9 +77,68 @@ def main() -> None:
     render_top_banner(logo_path)
 
     st.title("Perception Ops Lab — Agentic (Cloud-First)")
-    st.write(
-        "This is a branded shell UI. The full perception demo will be wired next."
+
+    api_base = st.sidebar.text_input("API base URL", value="http://localhost:8000")
+    st.sidebar.caption("Set FastAPI base URL")
+
+    tab_run, tab_eval, tab_metrics, tab_reports, tab_fusion = st.tabs(
+        ["Run", "Evaluate", "Metrics", "Reports", "Fusion"]
     )
+
+    with tab_run:
+        st.subheader("Run")
+        col1, col2, col3 = st.columns([2, 1, 1])
+        with col1:
+            video = st.selectbox("Video", options=["data/samples/day.mp4", "data/samples/night.mp4"]) 
+        with col2:
+            profile = st.selectbox("Profile", options=["realtime", "accuracy"], index=0)
+        with col3:
+            start = st.button("Start")
+            pause = st.button("Pause")
+            reset = st.button("Reset")
+
+        st.caption("Overlays and streaming will appear here in later steps.")
+        if start:
+            try:
+                resp = requests.post(f"{api_base}/run_video", json={"video_path": video, "profile": profile}, timeout=5)
+                st.success(f"Requested run: {resp.json()}")
+            except Exception as e:
+                st.warning(f"API not reachable yet: {e}")
+
+    with tab_eval:
+        st.subheader("Evaluate")
+        dataset = st.text_input("Dataset (COCO JSON)", value="data/labels/demo_annotations.json")
+        tasks = st.multiselect("Tasks", options=["det","seg","track","ocr"], default=["det"]) 
+        if st.button("Run Eval"):
+            try:
+                resp = requests.post(f"{api_base}/evaluate", json={"dataset": dataset, "tasks": tasks}, timeout=10)
+                st.json(resp.json())
+            except Exception as e:
+                st.warning(f"API not reachable yet: {e}")
+
+    with tab_metrics:
+        st.subheader("Metrics")
+        st.markdown("View Prometheus metrics at `/metrics`. Grafana default: http://localhost:3000")
+        if st.button("Fetch /metrics"):
+            try:
+                text = requests.get(f"{api_base}/metrics", timeout=5).text
+                st.code(text)
+            except Exception as e:
+                st.warning(f"Metrics not available yet: {e}")
+
+    with tab_reports:
+        st.subheader("Reports")
+        run_id = st.text_input("Run ID", value="2025-09-02_12-00-00")
+        if st.button("Generate PDF"):
+            try:
+                resp = requests.post(f"{api_base}/report", json={"run_id": run_id}, timeout=10)
+                st.success(resp.json())
+            except Exception as e:
+                st.warning(f"API not reachable yet: {e}")
+
+    with tab_fusion:
+        st.subheader("Fusion")
+        st.caption("KITTI projection viewer will be added here.")
 
 
 if __name__ == "__main__":
