@@ -8,6 +8,8 @@ from datetime import datetime, timezone
 from .schemas import EvaluateRequest, ReportRequest, RunFrameRequest, RunVideoRequest
 from .metrics import get_metrics_registry
 from .storage import RunRegistry
+from app.utils.config import load_providers_config
+from app.providers.detection.replicate import ReplicateDetector
 
 
 app = FastAPI(title="Perception Ops Lab API", version="0.1.0")
@@ -25,8 +27,28 @@ def health() -> dict:
 def run_frame(req: RunFrameRequest) -> dict:
     # Stub response matching contract shape
     run_id = registry.ensure_run()
+    # Minimal provider wiring
+    providers = load_providers_config()
+    det_cfg = providers.get("detection", {})
+    det_provider = det_cfg.get("provider", "replicate")
+    det_model = det_cfg.get("model", "ultralytics/yolov8")
+    boxes = []
+    if det_provider == "replicate":
+        det = ReplicateDetector(det_model)
+        boxes = [
+            {
+                "x1": d.x1,
+                "y1": d.y1,
+                "x2": d.x2,
+                "y2": d.y2,
+                "score": d.score,
+                "cls": d.cls,
+            }
+            for d in det.infer(req.image_b64)
+        ]
+
     event = {
-        "boxes": [],
+        "boxes": boxes,
         "masks": [],
         "tracks": [],
         "ocr": [],
@@ -35,7 +57,7 @@ def run_frame(req: RunFrameRequest) -> dict:
         "run_id": run_id,
         "ts": datetime.now(timezone.utc).isoformat(),
         "fps": 0.0,
-        "provider_provenance": {"detector": "replicate:yolov8", "ocr": "gcv"},
+        "provider_provenance": {"detector": f"replicate:{det_model}", "ocr": "gcv"},
         "errors": [],
     }
     registry.append_event(run_id, json.dumps(event))

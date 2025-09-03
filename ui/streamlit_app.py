@@ -129,6 +129,18 @@ def main() -> None:
         if start:
             threading.Thread(target=_run_ws, daemon=True).start()
 
+        st.markdown("---")
+        st.subheader("Single-frame detection test")
+        uploaded = st.file_uploader("Upload image (jpg/png)", type=["jpg","jpeg","png"])
+        if uploaded and st.button("Run /run_frame"):
+            import base64
+            img_b64 = base64.b64encode(uploaded.read()).decode("utf-8")
+            try:
+                resp = requests.post(f"{api_base}/run_frame", json={"image_b64": img_b64, "profile": profile}, timeout=30)
+                st.json(resp.json())
+            except Exception as e:
+                st.warning(f"/run_frame failed: {e}")
+
     with tab_eval:
         st.subheader("Evaluate")
         dataset = st.text_input("Dataset (COCO JSON)", value="data/labels/demo_annotations.json")
