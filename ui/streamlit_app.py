@@ -151,6 +151,28 @@ def main() -> None:
             except Exception as e:
                 st.warning(f"/run_frame failed: {e}")
 
+        st.markdown("---")
+        st.subheader("Realtime vs Accuracy (single image)")
+        uploaded_cmp = st.file_uploader("Upload image for compare", type=["jpg","jpeg","png"], key="cmp")
+        if uploaded_cmp and st.button("Compare profiles"):
+            import base64
+            img_bytes = uploaded_cmp.read()
+            img_b64 = base64.b64encode(img_bytes).decode("utf-8")
+            try:
+                rt = requests.post(f"{api_base}/run_frame", json={"image_b64": img_b64, "profile": "realtime"}, timeout=30).json()
+                acc = requests.post(f"{api_base}/run_frame", json={"image_b64": img_b64, "profile": "accuracy"}, timeout=30).json()
+                col_rt, col_acc = st.columns(2)
+                with col_rt:
+                    st.caption("Realtime")
+                    if rt.get("annotated_b64"):
+                        st.image(rt["annotated_b64"], use_column_width=True)
+                with col_acc:
+                    st.caption("Accuracy")
+                    if acc.get("annotated_b64"):
+                        st.image(acc["annotated_b64"], use_column_width=True)
+            except Exception as e:
+                st.warning(f"Compare failed: {e}")
+
     with tab_eval:
         st.subheader("Evaluate")
         dataset = st.text_input("Dataset (COCO JSON)", value="data/labels/demo_annotations.json")

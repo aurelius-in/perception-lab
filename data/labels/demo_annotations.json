@@ -1,0 +1,12 @@
+{
+  "images": [
+    {"id": 1, "file_name": "frame_0001.jpg", "width": 1280, "height": 720}
+  ],
+  "annotations": [
+    {"id": 1, "image_id": 1, "bbox": [10, 20, 200, 120], "category_id": 3, "iscrowd": 0}
+  ],
+  "categories": [
+    {"id": 1, "name": "person"},
+    {"id": 3, "name": "car"}
+  ]
+}

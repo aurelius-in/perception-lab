@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 
 class EvaluatorAgent:
     def __init__(self, config: dict) -> None:
@@ -8,6 +10,10 @@ class EvaluatorAgent:
     def evaluate(self, dataset_path: str, tasks: list[str]) -> dict:
         # Placeholder IoU and mAP computation outlines using utils.metrics
         from app.utils.metrics import iou_xyxy, map50_placeholder  # noqa: F401
+        from app.utils.coco import load_coco, coco_gt_boxes_by_image
+        data = load_coco(dataset_path) if Path(dataset_path).exists() else {"images": [], "annotations": []}
+        gt_by_img = coco_gt_boxes_by_image(data)
+        # No actual preds; return zeros as placeholders
         iou = 0.0 if "seg" in tasks else None
         map50 = 0.0 if "det" in tasks else None
         idf1 = 0.0 if "track" in tasks else None

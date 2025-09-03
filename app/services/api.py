@@ -123,15 +123,12 @@ def run_video(req: RunVideoRequest) -> JSONResponse:
 
 @app.post("/evaluate")
 def evaluate(req: EvaluateRequest) -> dict:
-    # Write placeholder metrics to runs/<id>/metrics.json and return
+    # Call evaluator agent placeholder and persist
+    from app.agents.evaluator import EvaluatorAgent
     run_id = registry.last_run_id() or registry.ensure_run()
-    metrics_out = {
-        "det": {"map50": 0.0} if "det" in req.tasks else {},
-        "seg": {"miou": 0.0} if "seg" in req.tasks else {},
-        "track": {"idf1": 0.0} if "track" in req.tasks else {},
-        "ocr": {"acc": 0.0} if "ocr" in req.tasks else {},
-    }
-    result = {"metrics": metrics_out, "plots": [], "run_id": run_id, "dataset": req.dataset}
+    agent = EvaluatorAgent(config={})
+    result = agent.evaluate(req.dataset, req.tasks)
+    result.update({"run_id": run_id})
     run_dir = Path("runs") / run_id
     run_dir.mkdir(parents=True, exist_ok=True)
     (run_dir / "metrics.json").write_text(json.dumps(result, indent=2), encoding="utf-8")
