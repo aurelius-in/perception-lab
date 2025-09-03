@@ -113,6 +113,13 @@ def run_frame(req: RunFrameRequest) -> dict:
                 out_path.write_bytes(jpg_bytes)
                 annotated_path = str(out_path)
 
+    # Apply overlay filters (class include) if provided
+    class_include = None
+    if req.overlay_opts and isinstance(req.overlay_opts, dict):
+        class_include = req.overlay_opts.get("class_include")
+    if class_include:
+        boxes = [b for b in boxes if b.get("cls") in class_include]
+
     # Simple tracking stub
     tracks = SimpleTracker().update(boxes)
 

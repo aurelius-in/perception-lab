@@ -13,6 +13,8 @@ class RunFrameRequest(BaseModel):
     profile: ProfileName = Field(default="realtime")
     # Optional override of provider/model for showcase flexibility
     provider_override: dict | None = None
+    # Optional overlay/threshold options
+    overlay_opts: dict | None = None  # {"class_include": [str], "mask_opacity": float, "conf_thresh": float, "nms_iou": float}
 
 
 class RunVideoRequest(BaseModel):

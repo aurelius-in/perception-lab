@@ -122,9 +122,17 @@ def main() -> None:
         show_boxes = st.checkbox("Boxes", value=True)
         show_tracks = st.checkbox("Tracks", value=True)
         show_ocr = st.checkbox("OCR", value=True)
+        mask_opacity = st.slider("Mask opacity", 0.0, 1.0, 0.35, 0.05)
+        colt1, colt2 = st.columns(2)
+        with colt1:
+            conf_thresh = st.slider("Confidence", 0.05, 0.95, 0.35, 0.05)
+        with colt2:
+            nms_iou = st.slider("NMS IoU", 0.05, 0.95, 0.5, 0.05)
+        class_filter = st.text_input("Class include (comma-separated)", value="")
 
         st.markdown("### Telemetry")
         fps_placeholder = st.empty()
+        hud_bar = st.empty()
 
         st.caption("WebSocket stream (stub) will print events below.")
         log_box = st.empty()
@@ -148,6 +156,8 @@ def main() -> None:
                         messages.append(ev)
                         if ev.get("fps"):
                             fps_placeholder.metric("FPS", f"{ev['fps']:.1f}")
+                        t = ev.get("timings", {})
+                        hud_bar.write(f"pre: {t.get('pre',0)} ms | model: {t.get('model',0)} ms | post: {t.get('post',0)} ms")
                     except Exception:
                         messages.append({"raw": msg})
                     # show only last few
@@ -220,7 +230,13 @@ def main() -> None:
                 override = None
                 if det_provider != "default":
                     override = {"detection": {"provider": det_provider, "model": det_model}}
-                payload = {"image_b64": img_b64, "profile": profile, "provider_override": override}
+                overlay_opts = {
+                    "class_include": [c.strip() for c in class_filter.split(",") if c.strip()],
+                    "mask_opacity": mask_opacity,
+                    "conf_thresh": conf_thresh,
+                    "nms_iou": nms_iou,
+                }
+                payload = {"image_b64": img_b64, "profile": profile, "provider_override": override, "overlay_opts": overlay_opts}
                 resp = requests.post(f"{api_base}/run_frame", json=payload, timeout=30)
                 data = resp.json()
                 col_a, col_b = st.columns(2)
@@ -258,6 +274,22 @@ def main() -> None:
                         label2="Accuracy",
                         width=700,
                     )
+                    # Simple heatmap diff toggle
+                    if st.checkbox("Show difference heatmap"):
+                        import numpy as _np
+                        import base64 as _b64
+                        import cv2 as _cv
+                        def _decode(b):
+                            arr = _np.frombuffer(_b64.b64decode(b), dtype=_np.uint8)
+                            return _cv.imdecode(arr, _cv.IMREAD_COLOR)
+                        a = _decode(rt["annotated_b64"];)
+                        b = _decode(acc["annotated_b64"];)
+                        if a is not None and b is not None and a.shape == b.shape:
+                            diff = _cv.absdiff(a, b)
+                            heat = _cv.applyColorMap(_cv.cvtColor(_cv.cvtColor(diff, _cv.COLOR_BGR2GRAY), _cv.COLOR_GRAY2BGR), _cv.COLORMAP_JET)
+                            ok, buf = _cv.imencode('.jpg', heat)
+                            if ok:
+                                st.image(_b64.b64encode(buf.tobytes()).decode('utf-8'), caption="Difference heatmap", use_column_width=True)
             except Exception as e:
                 st.warning(f"Compare failed: {e}")
 
