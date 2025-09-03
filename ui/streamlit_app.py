@@ -223,6 +223,19 @@ def main() -> None:
             except Exception as e:
                 st.warning(f"API not reachable yet: {e}")
 
+        st.markdown("---")
+        if st.button("Generate report for last run"):
+            try:
+                last = requests.get(f"{api_base}/last_event", timeout=5).json()
+                last_run = last.get("run_id")
+                if not last_run:
+                    st.info("No recent runs.")
+                else:
+                    resp = requests.post(f"{api_base}/report", json={"run_id": last_run}, timeout=20).json()
+                    st.success(resp)
+            except Exception as e:
+                st.warning(f"Failed to build report: {e}")
+
     with tab_fusion:
         st.subheader("Fusion")
         st.caption("KITTI projection viewer will be added here.")
