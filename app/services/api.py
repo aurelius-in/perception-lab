@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from fastapi import FastAPI, Response
 from fastapi.responses import JSONResponse, PlainTextResponse
+import json
+from datetime import datetime, timezone
 
 from .schemas import EvaluateRequest, ReportRequest, RunFrameRequest, RunVideoRequest
 from .metrics import get_metrics_registry
@@ -23,7 +25,7 @@ def health() -> dict:
 def run_frame(req: RunFrameRequest) -> dict:
     # Stub response matching contract shape
     run_id = registry.ensure_run()
-    return {
+    event = {
         "boxes": [],
         "masks": [],
         "tracks": [],
@@ -31,7 +33,13 @@ def run_frame(req: RunFrameRequest) -> dict:
         "timings": {"pre": 0.0, "model": 0.0, "post": 0.0},
         "frame_id": 0,
         "run_id": run_id,
+        "ts": datetime.now(timezone.utc).isoformat(),
+        "fps": 0.0,
+        "provider_provenance": {"detector": "replicate:yolov8", "ocr": "gcv"},
+        "errors": [],
     }
+    registry.append_event(run_id, json.dumps(event))
+    return event
 
 
 @app.post("/run_video")
@@ -65,5 +73,18 @@ def report(req: ReportRequest) -> dict:
 def prometheus_metrics() -> Response:
     content, content_type = metrics.export_prometheus_text()
     return PlainTextResponse(content=content, media_type=content_type)
+
+
+@app.get("/last_event")
+def last_event() -> JSONResponse:
+    run_id = registry.last_run_id()
+    if not run_id:
+        return JSONResponse({"run_id": None, "event": None})
+    evt = registry.read_last_event(run_id)
+    try:
+        parsed = json.loads(evt) if evt else None
+    except Exception:
+        parsed = evt
+    return JSONResponse({"run_id": run_id, "event": parsed})
 
 

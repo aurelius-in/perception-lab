@@ -125,6 +125,14 @@ def main() -> None:
                 st.code(text)
             except Exception as e:
                 st.warning(f"Metrics not available yet: {e}")
+        st.markdown("---")
+        st.subheader("Last JSON event")
+        if st.button("Fetch last event"):
+            try:
+                last = requests.get(f"{api_base}/last_event", timeout=5).json()
+                st.json(last)
+            except Exception as e:
+                st.warning(f"Last event not available: {e}")
 
     with tab_reports:
         st.subheader("Reports")
