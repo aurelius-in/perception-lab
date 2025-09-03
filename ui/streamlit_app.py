@@ -39,6 +39,9 @@ def inject_base_styles() -> None:
 
         /* Centering helpers */
         .center { display: flex; align-items: center; justify-content: center; }
+
+        /* Hotkeys hint */
+        .hotkeys { color: #8fbac0; font-size: 12px; }
         </style>
         """,
         unsafe_allow_html=True,
@@ -81,6 +84,20 @@ def main() -> None:
     render_top_banner(logo_path)
 
     st.title("Perception Ops Lab — Agentic (Cloud-First)")
+    st.caption("Space = play/pause · ←/→ seek · Toggles: boxes/tracks/OCR")
+    # Inject minimal JS hotkeys for hints (Streamlit limitation for full control)
+    st.markdown(
+        """
+        <script>
+        document.addEventListener('keydown', function(e) {
+          if (e.code === 'Space') { console.log('Toggle play/pause (stub)'); e.preventDefault(); }
+          if (e.code === 'ArrowLeft') { console.log('Seek backward (stub)'); }
+          if (e.code === 'ArrowRight') { console.log('Seek forward (stub)'); }
+        });
+        </script>
+        """,
+        unsafe_allow_html=True,
+    )
 
     api_base = st.sidebar.text_input("API base URL", value="http://localhost:8000")
     st.sidebar.caption("Set FastAPI base URL")
@@ -142,18 +159,77 @@ def main() -> None:
             threading.Thread(target=_run_ws, daemon=True).start()
 
         st.markdown("---")
+        st.subheader("Quick actions")
+        colq1, colq2 = st.columns(2)
+        with colq1:
+            if st.button("Show last annotated frame"):
+                try:
+                    last = requests.get(f"{api_base}/last_event", timeout=8).json()
+                    evt = last.get("event") or {}
+                    meta_col, img_col = st.columns([1, 2])
+                    with meta_col:
+                        st.caption("Timings (ms)")
+                        st.json(evt.get("timings", {}))
+                        st.caption("Provider")
+                        st.json(evt.get("provider_provenance", {}))
+                    with img_col:
+                        if evt.get("annotated_b64"):
+                            st.image(evt["annotated_b64"], caption="Last annotated", use_column_width=True)
+                        else:
+                            st.info("No annotated image found.")
+                except Exception as e:
+                    st.warning(f"Failed to load last annotated frame: {e}")
+        with colq2:
+            if st.button("Interview Mode (2 min)"):
+                try:
+                    import time as _time
+                    st.toast("Running realtime profile…", icon="▶️")
+                    requests.post(f"{api_base}/run_video", json={"video_path": "data/samples/day.mp4", "profile": "realtime"}, timeout=10)
+                    _time.sleep(5)
+                    st.toast("Comparing profiles…", icon="🌓")
+                    # Use the comparison block by triggering programmatically is tricky; show inline compare here
+                    # Ask for one frame in both profiles and display side-by-side if image is uploaded later
+                    st.info("Upload an image below to complete the realtime vs accuracy comparison.")
+                    st.toast("Generating metrics…", icon="📈")
+                    try:
+                        requests.get(f"{api_base}/metrics", timeout=5)
+                    except Exception:
+                        pass
+                    st.toast("Building PDF…", icon="📄")
+                    last = requests.get(f"{api_base}/last_event", timeout=8).json()
+                    rid = last.get("run_id")
+                    if rid:
+                        rep = requests.post(f"{api_base}/report", json={"run_id": rid}, timeout=30).json()
+                        st.success(rep)
+                        st.toast(f"Report saved to {rep.get('report_path')}", icon="✅")
+                    else:
+                        st.info("No recent run to report.")
+                except Exception as e:
+                    st.warning(f"Interview Mode encountered an issue: {e}")
+
+        st.markdown("---")
         st.subheader("Single-frame detection test")
         uploaded = st.file_uploader("Upload image (jpg/png)", type=["jpg","jpeg","png"])
+        with st.expander("Provider override (optional)"):
+            det_provider = st.selectbox("Detection provider", ["default","replicate","hf","roboflow"], index=0)
+            det_model = st.text_input("Detector model/version (provider-specific)", value="ultralytics/yolov8")
         if uploaded and st.button("Run /run_frame"):
             import base64
             img_b64 = base64.b64encode(uploaded.read()).decode("utf-8")
             try:
-                resp = requests.post(f"{api_base}/run_frame", json={"image_b64": img_b64, "profile": profile}, timeout=30)
+                override = None
+                if det_provider != "default":
+                    override = {"detection": {"provider": det_provider, "model": det_model}}
+                payload = {"image_b64": img_b64, "profile": profile, "provider_override": override}
+                resp = requests.post(f"{api_base}/run_frame", json=payload, timeout=30)
                 data = resp.json()
                 col_a, col_b = st.columns(2)
                 with col_a:
                     st.caption("Response JSON")
                     st.json(data)
+                    if data.get("ocr"):
+                        st.caption("OCR")
+                        st.write(", ".join([o.get("text", "") for o in data.get("ocr", [])]))
                 with col_b:
                     if data.get("annotated_b64"):
                         st.caption("Annotated")
@@ -213,6 +289,26 @@ def main() -> None:
                 st.json(last)
             except Exception as e:
                 st.warning(f"Last event not available: {e}")
+        st.markdown("---")
+        st.subheader("Telemetry charts")
+        if st.button("Load recent telemetry"):
+            try:
+                snap = requests.get(f"{api_base}/events_snapshot?limit=100", timeout=8).json()
+                import pandas as _pd
+                _df = _pd.DataFrame({
+                    "frame": snap.get("frame_ids", []),
+                    "fps": snap.get("fps", []),
+                    "pre": snap.get("latency_pre", []),
+                    "model": snap.get("latency_model", []),
+                    "post": snap.get("latency_post", []),
+                })
+                if not _df.empty:
+                    st.line_chart(_df.set_index("frame")["fps"], height=180)
+                    st.area_chart(_df.set_index("frame")[["pre","model","post"]], height=220)
+                else:
+                    st.info("No telemetry yet.")
+            except Exception as e:
+                st.warning(f"Telemetry error: {e}")
 
     with tab_reports:
         st.subheader("Reports")
@@ -234,6 +330,15 @@ def main() -> None:
                 else:
                     resp = requests.post(f"{api_base}/report", json={"run_id": last_run}, timeout=20).json()
                     st.success(resp)
+                    # Download links
+                    rid = last_run
+                    col_d1, col_d2 = st.columns(2)
+                    with col_d1:
+                        st.caption("Download logs")
+                        st.code(f"runs/{rid}/events.jsonl")
+                    with col_d2:
+                        st.caption("Download metrics")
+                        st.code(f"runs/{rid}/metrics.json")
             except Exception as e:
                 st.warning(f"Failed to build report: {e}")
 

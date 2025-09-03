@@ -1,4 +1,4 @@
-# PerceptionLab — 8-Minute Demo Runbook
+# PerceptionLab — 8-Minute Runbook
 
 1) Setup
 - Start services: `docker compose up --build`

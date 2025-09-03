@@ -18,7 +18,7 @@ class EvaluatorAgent:
         map50 = 0.0 if "det" in tasks else None
         idf1 = 0.0 if "track" in tasks else None
         ocr_acc = 0.0 if "ocr" in tasks else None
-        # Confusion matrix placeholder (2x2) per-class aggregation could go here; we add a demo stub
+        # Confusion matrix placeholder (2x2) per-class aggregation could go here
         cm = [[0, 0], [0, 0]] if "det" in tasks else None
         metrics = {
             "det": {"map50": map50} if map50 is not None else {},

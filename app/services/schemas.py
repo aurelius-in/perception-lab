@@ -11,6 +11,8 @@ ProfileName = Literal["realtime", "accuracy"]
 class RunFrameRequest(BaseModel):
     image_b64: str
     profile: ProfileName = Field(default="realtime")
+    # Optional override of provider/model for showcase flexibility
+    provider_override: dict | None = None
 
 
 class RunVideoRequest(BaseModel):

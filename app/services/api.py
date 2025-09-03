@@ -14,9 +14,10 @@ from .metrics import get_metrics_registry
 from .storage import RunRegistry
 from app.utils.config import load_providers_config
 from app.providers.detection.replicate import ReplicateDetector
-from app.utils.viz import draw_boxes, draw_track_ids
+from app.utils.viz import draw_boxes, draw_track_ids, overlay_soft_masks, draw_ocr_labels
 from app.utils.timing import StageTimer, timed
 from app.providers.tracking.bytetrack import SimpleTracker
+from app.providers.segmentation.hf import HfSegmentation
 
 
 app = FastAPI(title="Perception Ops Lab API", version="0.1.0")
@@ -37,6 +38,8 @@ def run_frame(req: RunFrameRequest) -> dict:
     # Minimal provider wiring
     providers = load_providers_config()
     det_cfg = providers.get("detection", {})
+    if req.provider_override and isinstance(req.provider_override, dict):
+        det_cfg = req.provider_override.get("detection", det_cfg)
     det_provider = det_cfg.get("provider", "replicate")
     det_model = det_cfg.get("model", "ultralytics/yolov8")
     boxes = []
@@ -66,10 +69,37 @@ def run_frame(req: RunFrameRequest) -> dict:
     except Exception:
         img = None
 
-    if img is not None and len(boxes) > 0:
+    if img is not None:
         box_tuples = [(b["x1"], b["y1"], b["x2"], b["y2"]) for b in boxes]
-        vis = draw_boxes(img, box_tuples)
+        vis = draw_boxes(img, box_tuples) if box_tuples else img.copy()
+        # Real segmentation overlay if configured
+        try:
+            seg = HfSegmentation(model_id="seg")
+            masks = seg.infer(req.image_b64)
+            # Expect either binary mask arrays or provider-specific; if binary buffers available, overlay
+            bin_masks = []
+            for m in masks:
+                buf = m.get("mask") if isinstance(m, dict) else None
+                if buf is not None:
+                    import base64 as _b64, numpy as _np
+                    raw = _b64.b64decode(buf)
+                    arr2 = _np.frombuffer(raw, dtype=_np.uint8)
+                    # Fallback shape; real endpoints should include shape metadata
+                    try:
+                        h, w = vis.shape[:2]
+                        bin_masks.append(arr2.reshape(h, w))
+                    except Exception:
+                        continue
+            if bin_masks:
+                vis = overlay_soft_masks(vis, bin_masks)
+        except Exception:
+            pass
         vis = draw_track_ids(vis, tracks)
+        # OCR labels placeholder draw (no real OCR yet)
+        try:
+            vis = draw_ocr_labels(vis, [])
+        except Exception:
+            pass
         ok, buf = cv2.imencode(".jpg", vis)
         if ok:
             jpg_bytes = buf.tobytes()
@@ -195,5 +225,32 @@ async def ws_run_video(ws: WebSocket) -> None:
     except WebSocketDisconnect:
         # Client disconnected early
         return
+
+
+@app.get("/events_snapshot")
+def events_snapshot(limit: int = 50) -> JSONResponse:
+    run_id = registry.last_run_id()
+    if not run_id:
+        return JSONResponse({"run_id": None, "fps": [], "latency_pre": [], "latency_model": [], "latency_post": [], "frame_ids": []})
+    path = Path("runs") / run_id / "events.jsonl"
+    fps: list[float] = []
+    lpre: list[float] = []
+    lmod: list[float] = []
+    lpost: list[float] = []
+    fids: list[int] = []
+    if path.exists():
+        lines = path.read_text(encoding="utf-8").splitlines()
+        for line in lines[-limit:]:
+            try:
+                obj = json.loads(line)
+                fids.append(int(obj.get("frame_id", 0)))
+                fps.append(float(obj.get("fps", 0.0)))
+                t = obj.get("timings", {})
+                lpre.append(float(t.get("pre", 0.0)))
+                lmod.append(float(t.get("model", 0.0)))
+                lpost.append(float(t.get("post", 0.0)))
+            except Exception:
+                continue
+    return JSONResponse({"run_id": run_id, "fps": fps, "latency_pre": lpre, "latency_model": lmod, "latency_post": lpost, "frame_ids": fids})
 
 
