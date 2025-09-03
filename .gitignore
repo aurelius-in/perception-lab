@@ -11,6 +11,10 @@ __pycache__/
 .env
 .venv/
 venv/
+.venv/**/*
+venv/**/*
+ENV/
+env/
 
 # OS/IDE
 .DS_Store
@@ -23,6 +27,7 @@ Thumbs.db
 
 # Runs & artifacts
 runs/
+*.zip
 
 # Node (if we add a web client later)
 node_modules/
