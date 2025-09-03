@@ -1,6 +1,6 @@
 
 <p align="center">
-  <img src="assets/pl-ani.gif" alt="PerceptionLab" width="220" />
+  <img src="ui/assets/logo.svg" alt="PerceptionLab" width="360" />
 </p>
 
 # PerceptionLab
@@ -18,31 +18,30 @@
 
 - **Agentic orchestration**: Planner → Curator → Runner → Evaluator → Observability → Reporter. Re-run the same plan and get the same artifacts.  
 - **Two operating profiles**: `realtime` for throughput and `accuracy` for fidelity; a UI slider compares outputs frame-for-frame.  
-- **Cloud inference adapters** for detectors/segmenters/OCR; local **ByteTrack/Norfair** for tracking.  
-- **Compact evaluation** on a small labeled subset: COCO mAP@0.5, mean IoU, IDF1, and OCR accuracy.  
-- **Observability by default**: structured JSON logs per frame, Prometheus metrics, and a prewired Grafana dashboard.  
-- **One-click PDF report**: pipeline diagram, metrics tables, latency histograms, and three annotated frames.  
-- **Fusion viewer**: a single KITTI frame projects LiDAR points onto RGB to verify calibration logic.  
-- **Production hygiene**: FastAPI contracts, typed adapters, Docker Compose, CI + unit tests.
+- **Cloud adapters** for detection/segmentation/OCR with provider-agnostic interfaces; local tracking.  
+- **Evaluation** on a compact subset: COCO mAP@0.5, mean IoU, IDF1, and OCR accuracy; export to JSON + plots.  
+- **Observability first**: structured per-frame logs, Prometheus pre/model/post latency histograms, FPS chart, Grafana dashboard.  
+- **One-click PDF**: pipeline diagram, metrics tables, latency histograms, and three annotated frames.  
+- **Fusion viewer**: a single KITTI frame projects LiDAR points onto RGB to evidence calibration literacy.  
+- **Production hygiene**: clean FastAPI contracts (REST + WebSocket), Docker Compose, CI + tests, typed adapters.
 
 > Intentional emphasis on reliability and measurement. The UI exists to visualize outputs and system health.
 
 ---
 
-## What it handles
+## What it handles (Capability → Why it matters)
 
-| Need | Where it lives |
-|---|---|
-| Understand the scene (detect/segment/track/read) | `app/providers/*`, `pipelines/video_pipeline.py`, `tracking/` |
-| Operate under time & resource limits | profile configs, timing utilities, Prometheus histograms, FPS chart |
-| Integrate multiple modalities | `pipelines/fusion_projection.py` (KITTI LiDAR → camera) |
-| Ship services with clear interfaces | FastAPI in `app/services/api.py`, typed adapters and schemas |
-| Evaluate consistently | `agents/evaluator.py`, COCO subset, `metrics.json` + plots |
-| Keep runs auditable | per-frame JSON logs, run registry, `report.pdf` with provenance |
-| Degrade gracefully | adapter retries, fallbacks, anomaly flags in Observability agent |
-| Automate hygiene | `.github/workflows/ci.yml`, `tests/` unit tests |
-| Prepare for robotics/edge | ROS topic schema stub, ONNX/TensorRT notes, Jetson profile hints |
-| Work across cloud vendors | adapters for OCR and inference endpoints (AWS/Azure/GCP/Replicate/HF) |
+| Capability | Why it matters | Where |
+|---|---|---|
+| Detection / Segmentation / Tracking / OCR | Understand scenes and act reliably | `app/providers/*`, `pipelines/video_pipeline.py`, tracking stubs |
+| Realtime vs Accuracy profiles | Balance latency vs fidelity; compare fairly | `app/configs/profiles/*`, UI compare slider |
+| Multi‑modal fusion (LiDAR→RGB) | Evidence calibration literacy and 3D intuition | `pipelines/fusion_projection.py` |
+| Clean service contracts | Easier integration, safer changes | FastAPI `app/services/api.py`, schemas |
+| Metrics (mAP/IoU/IDF1/OCR) | Evidence over anecdotes; track regressions | `agents/evaluator.py`, `runs/<id>/metrics.json` |
+| Observability | Diagnose performance; spot anomalies | structured logs, Prometheus, Grafana |
+| Reporting | Shareable, audit‑ready artifacts | `app/services/report.py` → PDF |
+| CI/testing | Confidence to change code | `.github/workflows/ci.yml`, `tests/` |
+| Cloud adapters | Footprint‑savvy, provider‑agnostic | `app/providers/*`, `app/configs/providers.yaml` |
 
 ---
 
@@ -195,19 +194,22 @@ streamlit run ui/streamlit_app.py --server.port 8501
 ## Using PerceptionLab
 
 **Run tab**  
-Pick a clip and a profile. Watch boxes, masks, track IDs with short tails, and OCR overlays. A small panel shows FPS and per-stage latency. Expand the latest JSON event to inspect exact outputs.
+Pick a clip and a profile. Watch boxes, soft masks, track IDs with comet tails, and OCR labels. Toggle overlays, filter classes, adjust mask opacity, confidence and NMS. A HUD shows FPS and per‑stage latency; the event log is one click away. Use provider overrides for single‑frame detection, and export side‑by‑side via the compare slider.
 
 **Evaluate tab**  
 Select the labeled subset and tasks. See mAP@0.5, mean IoU, IDF1, and OCR accuracy with small plots.
 
 **Metrics tab**  
-Prometheus metrics are exported by the API. Grafana shows latency histograms and FPS trends.
+Prometheus metrics are exported by the API. Built‑in mini‑charts show FPS and per‑stage latencies; Grafana provides richer dashboards.
 
 **Reports tab**  
-Generate `runs/<id>/report.pdf`. The report includes provenance, metrics, latency plots, and three annotated frames.
+Generate `runs/<id>/report.pdf`. The report includes a pipeline diagram, provenance table, metrics, latency histograms, and three annotated frames. Quick links show where to download `events.jsonl` and `metrics.json`.
 
 **Fusion tab**  
 Visualize a single KITTI frame with LiDAR points projected onto the RGB image.
+
+**Interview mode**  
+A 2‑minute sequence that: runs realtime briefly, prompts a realtime vs accuracy comparison, surfaces telemetry, and generates a PDF for the latest run with success toasts.
 
 ---
 
@@ -226,8 +228,8 @@ Visualize a single KITTI frame with LiDAR points projected onto the RGB image.
 
 ```http
 POST /run_frame
-# body: { "image_b64": "...", "profile": "realtime" }
-# resp: { "boxes": [...], "masks": [...], "tracks": [...], "ocr": [...], "timings": {...}, "frame_id": int }
+# body: { "image_b64": "...", "profile": "realtime", "provider_override": {...}, "overlay_opts": {...} }
+# resp: { "boxes": [...], "masks": [...], "tracks": [...], "ocr": [...], "timings": {...}, "frame_id": int, "annotated_path": str, "annotated_b64": str }
 
 POST /run_video
 # body: { "video_path": "data/samples/day.mp4", "profile": "realtime" }
@@ -329,6 +331,25 @@ A GitHub Actions workflow runs lint, type checks, and unit tests on push and pul
 - Expose internal models behind the same contract to compare outputs fairly  
 - Expand the labeled subset to increase metric fidelity  
 - Replace the Streamlit UI with a React client that calls the same contracts
+
+---
+
+## Interview mode (turnkey walkthrough)
+
+Click “Interview Mode” in the Run tab. The sequence loads the curated clip, runs realtime for a few seconds, prompts a realtime vs accuracy comparison, opens telemetry, and builds the PDF. On‑screen captions announce each step; the flow is resilient to transient provider delays.
+
+---
+
+## Data preparation (tiny and legal)
+
+PerceptionLab expects two 10–15 s clips and a small COCO labels file. To trim videos locally with ffmpeg:
+
+```bash
+ffmpeg -ss 00:00:03 -i source.mp4 -t 00:00:12 -c copy data/samples/day.mp4
+ffmpeg -ss 00:00:08 -i source_night.mp4 -t 00:00:12 -c copy data/samples/night.mp4
+```
+
+Do not download large datasets automatically; prefer small, permitted samples (e.g., BDD100K, Cityscapes, KITTI, nuScenes mini, CARLA renders).
 
 ---
 
