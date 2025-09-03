@@ -36,6 +36,8 @@ def inject_base_styles() -> None:
         }
         .top-banner img { max-height: 64px; }
         .stButton>button { transition: all 200ms ease-in-out; border-radius: 8px; }
+        .card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); padding: 12px 14px; border-radius: 10px; }
+        .sticky-hud { position: sticky; top: 6px; z-index: 100; background: rgba(6,14,38,0.85); backdrop-filter: blur(4px); padding: 6px 10px; border-radius: 8px; border: 1px solid rgba(2,171,193,0.2); }
 
         /* Centering helpers */
         .center { display: flex; align-items: center; justify-content: center; }
@@ -118,21 +120,23 @@ def main() -> None:
             pause = st.button("Pause")
             reset = st.button("Reset")
 
-        st.markdown("### Overlays")
-        show_boxes = st.checkbox("Boxes", value=True)
-        show_tracks = st.checkbox("Tracks", value=True)
-        show_ocr = st.checkbox("OCR", value=True)
-        mask_opacity = st.slider("Mask opacity", 0.0, 1.0, 0.35, 0.05)
-        colt1, colt2 = st.columns(2)
-        with colt1:
-            conf_thresh = st.slider("Confidence", 0.05, 0.95, 0.35, 0.05)
-        with colt2:
-            nms_iou = st.slider("NMS IoU", 0.05, 0.95, 0.5, 0.05)
-        class_filter = st.text_input("Class include (comma-separated)", value="")
+        with st.expander("Overlays & thresholds", expanded=True):
+            show_boxes = st.checkbox("Boxes", value=True)
+            show_tracks = st.checkbox("Tracks", value=True)
+            show_ocr = st.checkbox("OCR", value=True)
+            mask_opacity = st.slider("Mask opacity", 0.0, 1.0, 0.35, 0.05, help="Transparency of segmentation overlays")
+            colt1, colt2 = st.columns(2)
+            with colt1:
+                conf_thresh = st.slider("Confidence", 0.05, 0.95, 0.35, 0.05)
+            with colt2:
+                nms_iou = st.slider("NMS IoU", 0.05, 0.95, 0.5, 0.05)
+            class_filter = st.text_input("Class include (comma-separated)", value="", help="Limit overlays to these classes")
 
         st.markdown("### Telemetry")
+        st.markdown('<div class="sticky-hud">', unsafe_allow_html=True)
         fps_placeholder = st.empty()
         hud_bar = st.empty()
+        st.markdown('</div>', unsafe_allow_html=True)
 
         st.caption("WebSocket stream (stub) will print events below.")
         log_box = st.empty()
@@ -227,17 +231,18 @@ def main() -> None:
             import base64
             img_b64 = base64.b64encode(uploaded.read()).decode("utf-8")
             try:
-                override = None
-                if det_provider != "default":
-                    override = {"detection": {"provider": det_provider, "model": det_model}}
-                overlay_opts = {
-                    "class_include": [c.strip() for c in class_filter.split(",") if c.strip()],
-                    "mask_opacity": mask_opacity,
-                    "conf_thresh": conf_thresh,
-                    "nms_iou": nms_iou,
-                }
-                payload = {"image_b64": img_b64, "profile": profile, "provider_override": override, "overlay_opts": overlay_opts}
-                resp = requests.post(f"{api_base}/run_frame", json=payload, timeout=30)
+                with st.spinner("Running /run_frame..."):
+                    override = None
+                    if det_provider != "default":
+                        override = {"detection": {"provider": det_provider, "model": det_model}}
+                    overlay_opts = {
+                        "class_include": [c.strip() for c in class_filter.split(",") if c.strip()],
+                        "mask_opacity": mask_opacity,
+                        "conf_thresh": conf_thresh,
+                        "nms_iou": nms_iou,
+                    }
+                    payload = {"image_b64": img_b64, "profile": profile, "provider_override": override, "overlay_opts": overlay_opts}
+                    resp = requests.post(f"{api_base}/run_frame", json=payload, timeout=30)
                 data = resp.json()
                 col_a, col_b = st.columns(2)
                 with col_a:
@@ -263,8 +268,9 @@ def main() -> None:
             img_bytes = uploaded_cmp.read()
             img_b64 = base64.b64encode(img_bytes).decode("utf-8")
             try:
-                rt = requests.post(f"{api_base}/run_frame", json={"image_b64": img_b64, "profile": "realtime"}, timeout=30).json()
-                acc = requests.post(f"{api_base}/run_frame", json={"image_b64": img_b64, "profile": "accuracy"}, timeout=30).json()
+                with st.spinner("Comparing profiles..."):
+                    rt = requests.post(f"{api_base}/run_frame", json={"image_b64": img_b64, "profile": "realtime"}, timeout=30).json()
+                    acc = requests.post(f"{api_base}/run_frame", json={"image_b64": img_b64, "profile": "accuracy"}, timeout=30).json()
                 from streamlit_image_comparison import image_comparison
                 if rt.get("annotated_b64") and acc.get("annotated_b64"):
                     image_comparison(
@@ -282,8 +288,8 @@ def main() -> None:
                         def _decode(b):
                             arr = _np.frombuffer(_b64.b64decode(b), dtype=_np.uint8)
                             return _cv.imdecode(arr, _cv.IMREAD_COLOR)
-                        a = _decode(rt["annotated_b64"];)
-                        b = _decode(acc["annotated_b64"];)
+                        a = _decode(rt["annotated_b64"])
+                        b = _decode(acc["annotated_b64"])
                         if a is not None and b is not None and a.shape == b.shape:
                             diff = _cv.absdiff(a, b)
                             heat = _cv.applyColorMap(_cv.cvtColor(_cv.cvtColor(diff, _cv.COLOR_BGR2GRAY), _cv.COLOR_GRAY2BGR), _cv.COLORMAP_JET)
