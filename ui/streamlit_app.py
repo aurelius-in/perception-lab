@@ -137,7 +137,17 @@ def main() -> None:
             img_b64 = base64.b64encode(uploaded.read()).decode("utf-8")
             try:
                 resp = requests.post(f"{api_base}/run_frame", json={"image_b64": img_b64, "profile": profile}, timeout=30)
-                st.json(resp.json())
+                data = resp.json()
+                col_a, col_b = st.columns(2)
+                with col_a:
+                    st.caption("Response JSON")
+                    st.json(data)
+                with col_b:
+                    if data.get("annotated_b64"):
+                        st.caption("Annotated")
+                        st.image(data["annotated_b64"], caption="Overlay", use_column_width=True)
+                    else:
+                        st.info("No annotated image returned.")
             except Exception as e:
                 st.warning(f"/run_frame failed: {e}")
 

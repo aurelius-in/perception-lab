@@ -4,12 +4,17 @@ from fastapi import FastAPI, Response, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse, PlainTextResponse
 import json
 from datetime import datetime, timezone
+import base64
+from pathlib import Path
+import numpy as np
+import cv2
 
 from .schemas import EvaluateRequest, ReportRequest, RunFrameRequest, RunVideoRequest
 from .metrics import get_metrics_registry
 from .storage import RunRegistry
 from app.utils.config import load_providers_config
 from app.providers.detection.replicate import ReplicateDetector
+from app.utils.viz import draw_boxes
 
 
 app = FastAPI(title="Perception Ops Lab API", version="0.1.0")
@@ -47,6 +52,27 @@ def run_frame(req: RunFrameRequest) -> dict:
             for d in det.infer(req.image_b64)
         ]
 
+    # Decode input and produce annotated overlay if possible
+    annotated_b64 = None
+    annotated_path = None
+    try:
+        img_bytes = base64.b64decode(req.image_b64.encode("utf-8"))
+        arr = np.frombuffer(img_bytes, dtype=np.uint8)
+        img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+    except Exception:
+        img = None
+
+    if img is not None and len(boxes) > 0:
+        box_tuples = [(b["x1"], b["y1"], b["x2"], b["y2"]) for b in boxes]
+        vis = draw_boxes(img, box_tuples)
+        ok, buf = cv2.imencode(".jpg", vis)
+        if ok:
+            jpg_bytes = buf.tobytes()
+            annotated_b64 = base64.b64encode(jpg_bytes).decode("utf-8")
+            out_path = Path("runs") / run_id / f"annotated_{0:03d}.jpg"
+            out_path.write_bytes(jpg_bytes)
+            annotated_path = str(out_path)
+
     event = {
         "boxes": boxes,
         "masks": [],
@@ -59,6 +85,8 @@ def run_frame(req: RunFrameRequest) -> dict:
         "fps": 0.0,
         "provider_provenance": {"detector": f"replicate:{det_model}", "ocr": "gcv"},
         "errors": [],
+        "annotated_path": annotated_path,
+        "annotated_b64": annotated_b64,
     }
     registry.append_event(run_id, json.dumps(event))
     return event
