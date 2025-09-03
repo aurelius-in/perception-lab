@@ -58,6 +58,8 @@ def build_pdf_report(run_dir: Path) -> Path:
           body {{ font-family: sans-serif; }}
           h1 {{ color: #02ABC1; }}
           .row {{ display: flex; flex-direction: row; }}
+          table {{ border-collapse: collapse; margin: 8px 0; }}
+          th, td {{ border: 1px solid #ccc; padding: 6px 8px; text-align: left; }}
         </style>
       </head>
       <body>
@@ -65,6 +67,16 @@ def build_pdf_report(run_dir: Path) -> Path:
         <p>Run directory: {run_dir}</p>
         <h2>Metrics</h2>
         <pre>{json.dumps(metrics_json, indent=2)}</pre>
+        <h3>Metrics Table</h3>
+        <table>
+          <tr><th>Task</th><th>Metric</th><th>Value</th></tr>
+          {''.join([
+            ''.join([f"<tr><td>{task}</td><td>{mname}</td><td>{val}</td></tr>" for mname, val in (metrics_json.get('metrics', {}).get(task, {}) or {}).items()])
+            for task in (metrics_json.get('metrics', {}) or {}).keys()
+          ])}
+        </table>
+        <h3>Confusion Matrix (if available)</h3>
+        {"<pre>" + json.dumps(metrics_json.get('cm'), indent=2) + "</pre>" if metrics_json.get('cm') is not None else "<p>Not available.</p>"}
         <h2>Annotated Frames</h2>
         <div class='row'>{img_tags}</div>
         <h2>Latency Histogram</h2>

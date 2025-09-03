@@ -100,6 +100,14 @@ def main() -> None:
             pause = st.button("Pause")
             reset = st.button("Reset")
 
+        st.markdown("### Overlays")
+        show_boxes = st.checkbox("Boxes", value=True)
+        show_tracks = st.checkbox("Tracks", value=True)
+        show_ocr = st.checkbox("OCR", value=True)
+
+        st.markdown("### Telemetry")
+        fps_placeholder = st.empty()
+
         st.caption("WebSocket stream (stub) will print events below.")
         log_box = st.empty()
 
@@ -118,7 +126,10 @@ def main() -> None:
                     if not msg:
                         break
                     try:
-                        messages.append(_json.loads(msg))
+                        ev = _json.loads(msg)
+                        messages.append(ev)
+                        if ev.get("fps"):
+                            fps_placeholder.metric("FPS", f"{ev['fps']:.1f}")
                     except Exception:
                         messages.append({"raw": msg})
                     # show only last few
