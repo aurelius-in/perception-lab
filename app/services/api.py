@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import FastAPI, Response
+from fastapi import FastAPI, Response, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse, PlainTextResponse
 import json
 from datetime import datetime, timezone
@@ -86,5 +86,38 @@ def last_event() -> JSONResponse:
     except Exception:
         parsed = evt
     return JSONResponse({"run_id": run_id, "event": parsed})
+
+
+@app.websocket("/ws/run_video")
+async def ws_run_video(ws: WebSocket) -> None:
+    await ws.accept()
+    try:
+        params = dict(ws.query_params)
+        video_path = params.get("video_path", "data/samples/day.mp4")
+        profile = params.get("profile", "realtime")
+        run_id = registry.ensure_run()
+        # Send a few stub frames with timings/ids
+        for i in range(3):
+            event = {
+                "run_id": run_id,
+                "frame_id": i,
+                "ts": datetime.now(timezone.utc).isoformat(),
+                "timings": {"pre": 2.0, "model": 15.0, "post": 3.0},
+                "fps": 20.0,
+                "boxes": [],
+                "tracks": [],
+                "masks": [],
+                "ocr": [],
+                "provider_provenance": {"detector": "replicate:yolov8", "ocr": "gcv"},
+                "note": f"stub stream for {video_path} ({profile})",
+                "errors": [],
+            }
+            registry.append_event(run_id, json.dumps(event))
+            metrics.fps.set(event["fps"])  # basic metric update
+            await ws.send_json(event)
+        await ws.close()
+    except WebSocketDisconnect:
+        # Client disconnected early
+        return
 
 
