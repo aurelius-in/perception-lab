@@ -102,8 +102,8 @@ def main() -> None:
     api_base = st.sidebar.text_input("API base URL", value="http://localhost:8000")
     st.sidebar.caption("Set FastAPI base URL")
 
-    tab_run, tab_eval, tab_metrics, tab_reports, tab_fusion = st.tabs(
-        ["Run", "Evaluate", "Metrics", "Reports", "Fusion"]
+    tab_run, tab_eval, tab_metrics, tab_reports, tab_fusion, tab_use_cases = st.tabs(
+        ["Run", "Evaluate", "Metrics", "Reports", "Fusion", "Use Cases"]
     )
 
     with tab_run:
@@ -297,12 +297,21 @@ def main() -> None:
         st.subheader("Evaluate")
         dataset = st.text_input("Dataset (COCO JSON)", value="data/labels/demo_annotations.json")
         tasks = st.multiselect("Tasks", options=["det","seg","track","ocr"], default=["det"]) 
-        if st.button("Run Eval"):
-            try:
-                resp = requests.post(f"{api_base}/evaluate", json={"dataset": dataset, "tasks": tasks}, timeout=10)
-                st.json(resp.json())
-            except Exception as e:
-                st.warning(f"API not reachable yet: {e}")
+        col_e1, col_e2 = st.columns(2)
+        with col_e1:
+            if st.button("Run Eval"):
+                try:
+                    resp = requests.post(f"{api_base}/evaluate", json={"dataset": dataset, "tasks": tasks}, timeout=10)
+                    st.json(resp.json())
+                except Exception as e:
+                    st.warning(f"API not reachable yet: {e}")
+        with col_e2:
+            if st.button("Load last metrics"):
+                try:
+                    m = requests.get(f"{api_base}/load_metrics", timeout=6).json()
+                    st.json(m)
+                except Exception as e:
+                    st.warning(f"Failed to load metrics: {e}")
 
     with tab_metrics:
         st.subheader("Metrics")
@@ -364,13 +373,20 @@ def main() -> None:
                     st.success(resp)
                     # Download links
                     rid = last_run
-                    col_d1, col_d2 = st.columns(2)
+                    col_d1, col_d2, col_d3 = st.columns(3)
                     with col_d1:
                         st.caption("Download logs")
                         st.code(f"runs/{rid}/events.jsonl")
                     with col_d2:
                         st.caption("Download metrics")
                         st.code(f"runs/{rid}/metrics.json")
+                    with col_d3:
+                        st.caption("Export run bundle")
+                        try:
+                            z = requests.post(f"{api_base}/export_run", json={"run_id": rid}, timeout=20).json()
+                            st.code(z.get("zip_path"))
+                        except Exception:
+                            st.info("Bundle export unavailable.")
             except Exception as e:
                 st.warning(f"Failed to build report: {e}")
 
@@ -397,6 +413,144 @@ def main() -> None:
                     st.image(arr, caption="Projected points", use_column_width=True)
             except Exception as e:
                 st.warning(f"Fusion projection failed: {e}")
+
+    with tab_use_cases:
+        st.subheader("Use Cases")
+        uc1, uc2, uc3, uc4, uc5 = st.tabs([
+            "Roadway Traffic & Sign Intelligence",
+            "Warehouse Safety & PPE",
+            "Retail Shelf QA (OCR)",
+            "Smart City Anomaly & Flow",
+            "Agriculture Field Scan",
+        ])
+
+        def _decode_b64_to_cv(img_b64: str):
+            import base64 as _b64, numpy as _np, cv2 as _cv
+            arr = _np.frombuffer(_b64.b64decode(img_b64), dtype=_np.uint8)
+            return _cv.imdecode(arr, _cv.IMREAD_COLOR)
+
+        # 1) Roadway: focus on signs/lights + OCR list and compare heatmap
+        with uc1:
+            st.caption("Filter to traffic signs/lights, extract OCR, and compare profiles")
+            up = st.file_uploader("Upload frame (jpg/png)", type=["jpg","jpeg","png"], key="uc1")
+            if up and st.button("Analyze roadway frame", key="uc1btn"):
+                import base64 as _b64
+                img_b64 = _b64.b64encode(up.read()).decode("utf-8")
+                try:
+                    # Run realtime with class filters for signs/lights
+                    payload = {
+                        "image_b64": img_b64,
+                        "profile": "realtime",
+                        "overlay_opts": {"class_include": ["traffic-light","sign"], "mask_opacity": 0.35},
+                    }
+                    rt = requests.post(f"{api_base}/run_frame", json=payload, timeout=30).json()
+                    st.image(rt.get("annotated_b64"), caption="Realtime (signs/lights)", use_column_width=True)
+                    st.caption("OCR (if present)")
+                    st.json(rt.get("ocr") or [])
+                    # Compare to accuracy
+                    acc = requests.post(f"{api_base}/run_frame", json={"image_b64": img_b64, "profile": "accuracy"}, timeout=30).json()
+                    from streamlit_image_comparison import image_comparison
+                    if rt.get("annotated_b64") and acc.get("annotated_b64"):
+                        image_comparison(img1=rt["annotated_b64"], img2=acc["annotated_b64"], label1="Realtime", label2="Accuracy", width=700)
+                except Exception as e:
+                    st.warning(f"Error: {e}")
+
+        # 2) Warehouse: virtual safety zones + person count inside
+        with uc2:
+            st.caption("Draw virtual safety zones and count people in-zone")
+            up = st.file_uploader("Upload frame (jpg/png)", type=["jpg","jpeg","png"], key="uc2")
+            x1 = st.number_input("Zone x1", 0, 2000, 100); y1 = st.number_input("Zone y1", 0, 2000, 100)
+            x2 = st.number_input("Zone x2", 0, 2000, 600); y2 = st.number_input("Zone y2", 0, 2000, 400)
+            if up and st.button("Check safety zones", key="uc2btn"):
+                import base64 as _b64, cv2 as _cv
+                img_b64 = _b64.b64encode(up.read()).decode("utf-8")
+                try:
+                    rt = requests.post(f"{api_base}/run_frame", json={"image_b64": img_b64, "profile": "realtime"}, timeout=30).json()
+                    im = _decode_b64_to_cv(rt.get("annotated_b64"))
+                    if im is not None:
+                        _cv.rectangle(im, (int(x1), int(y1)), (int(x2), int(y2)), (0,0,255), 2)
+                        # Count persons in zone
+                        cnt = 0
+                        for b in rt.get("boxes", []):
+                            if b.get("cls") == "person":
+                                bx1, by1, bx2, by2 = b["x1"], b["y1"], b["x2"], b["y2"]
+                                if bx1 < x2 and bx2 > x1 and by1 < y2 and by2 > y1:
+                                    cnt += 1
+                        st.metric("People in zone", cnt)
+                        ok, buf = _cv.imencode('.jpg', im)
+                        if ok:
+                            import base64 as _b64
+                            st.image(_b64.b64encode(buf.tobytes()).decode('utf-8'), use_column_width=True)
+                except Exception as e:
+                    st.warning(f"Error: {e}")
+
+        # 3) Retail shelf: OCR table and download CSV
+        with uc3:
+            st.caption("Extract price/label text and review as a table")
+            up = st.file_uploader("Upload frame (jpg/png)", type=["jpg","jpeg","png"], key="uc3")
+            if up and st.button("Extract OCR", key="uc3btn"):
+                import base64 as _b64, pandas as _pd
+                img_b64 = _b64.b64encode(up.read()).decode("utf-8")
+                try:
+                    rt = requests.post(f"{api_base}/run_frame", json={"image_b64": img_b64, "profile": "accuracy"}, timeout=30).json()
+                    ocr = rt.get("ocr") or []
+                    if ocr:
+                        df = _pd.DataFrame(ocr)
+                        st.dataframe(df, use_container_width=True)
+                        st.download_button("Download CSV", df.to_csv(index=False).encode("utf-8"), "ocr.csv", "text/csv")
+                    else:
+                        st.info("No OCR items returned.")
+                except Exception as e:
+                    st.warning(f"Error: {e}")
+
+        # 4) Smart city: flow strip charts and anomaly hint
+        with uc4:
+            st.caption("Visualize flow and latency; flag anomalies")
+            if st.button("Load recent telemetry", key="uc4btn"):
+                try:
+                    snap = requests.get(f"{api_base}/events_snapshot?limit=120", timeout=8).json()
+                    import pandas as _pd
+                    _df = _pd.DataFrame({
+                        "frame": snap.get("frame_ids", []),
+                        "fps": snap.get("fps", []),
+                        "pre": snap.get("latency_pre", []),
+                        "model": snap.get("latency_model", []),
+                        "post": snap.get("latency_post", []),
+                    })
+                    if not _df.empty:
+                        st.line_chart(_df.set_index("frame")["fps"], height=180)
+                        st.area_chart(_df.set_index("frame")[["pre","model","post"]], height=220)
+                        st.caption("Anomaly hint: spikes above 3× median are flagged")
+                        med = float(_df[["pre","model","post"]].median().sum())
+                        spikes = _df[( _df[["pre","model","post"]].sum(axis=1) > 3*med )]["frame"].tolist()
+                        st.write({"spike_frames": spikes[:10]})
+                    else:
+                        st.info("No telemetry yet.")
+                except Exception as e:
+                    st.warning(f"Error: {e}")
+
+        # 5) Agriculture: simple green mask and obstacle highlight
+        with uc5:
+            st.caption("Approximate vegetation mask and highlight obstacles")
+            up = st.file_uploader("Upload frame (jpg/png)", type=["jpg","jpeg","png"], key="uc5")
+            if up and st.button("Analyze field", key="uc5btn"):
+                import numpy as _np, cv2 as _cv
+                import base64 as _b64
+                img_b64 = _b64.b64encode(up.read()).decode("utf-8")
+                try:
+                    rt = requests.post(f"{api_base}/run_frame", json={"image_b64": img_b64, "profile": "realtime"}, timeout=30).json()
+                    im = _decode_b64_to_cv(rt.get("annotated_b64"))
+                    if im is not None:
+                        hsv = _cv.cvtColor(im, _cv.COLOR_BGR2HSV)
+                        lower = _np.array([35, 40, 40]); upper = _np.array([85, 255, 255])
+                        mask = _cv.inRange(hsv, lower, upper)
+                        veg = _cv.applyColorMap(_cv.cvtColor(mask, _cv.COLOR_GRAY2BGR), _cv.COLORMAP_SUMMER)
+                        overlay = _cv.addWeighted(im, 0.7, veg, 0.3, 0)
+                        ok, buf = _cv.imencode('.jpg', overlay)
+                        if ok:
+                            st.image(_b64.b64encode(buf.tobytes()).decode('utf-8'), use_column_width=True)
+                except Exception as e:
+                    st.warning(f"Error: {e}")
 
 
 if __name__ == "__main__":

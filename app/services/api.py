@@ -261,3 +261,32 @@ def events_snapshot(limit: int = 50) -> JSONResponse:
     return JSONResponse({"run_id": run_id, "fps": fps, "latency_pre": lpre, "latency_model": lmod, "latency_post": lpost, "frame_ids": fids})
 
 
+@app.get("/load_metrics")
+def load_metrics(run_id: str | None = None) -> JSONResponse:
+    rid = run_id or registry.last_run_id()
+    if not rid:
+        return JSONResponse({"run_id": None, "metrics": None})
+    path = Path("runs") / rid / "metrics.json"
+    if not path.exists():
+        return JSONResponse({"run_id": rid, "metrics": None})
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        data = None
+    return JSONResponse({"run_id": rid, "metrics": data})
+
+
+@app.post("/export_run")
+def export_run(payload: dict) -> dict:
+    rid = payload.get("run_id") or registry.last_run_id()
+    if not rid:
+        return {"zip_path": None, "error": "no run id"}
+    run_dir = Path("runs") / rid
+    if not run_dir.exists():
+        return {"zip_path": None, "error": "run dir not found"}
+    import shutil
+    zip_base = Path("runs") / f"{rid}_bundle"
+    zip_file = shutil.make_archive(str(zip_base), "zip", str(run_dir))
+    return {"zip_path": zip_file, "run_id": rid}
+
+
