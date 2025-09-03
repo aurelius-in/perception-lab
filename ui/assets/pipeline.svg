@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="820" height="160" viewBox="0 0 820 160" fill="none">
+  <rect width="820" height="160" rx="12" fill="#060E26"/>
+  <g font-family="Segoe UI, Arial" font-size="14" fill="#FFFFFF">
+    <rect x="20" y="30" width="130" height="60" rx="8" fill="#0A173A" stroke="#02ABC1"/>
+    <text x="35" y="65">Planner</text>
+    <rect x="170" y="30" width="130" height="60" rx="8" fill="#0A173A" stroke="#02ABC1"/>
+    <text x="185" y="65">Curator</text>
+    <rect x="320" y="30" width="130" height="60" rx="8" fill="#0A173A" stroke="#02ABC1"/>
+    <text x="335" y="65">Runner</text>
+    <rect x="470" y="30" width="130" height="60" rx="8" fill="#0A173A" stroke="#02ABC1"/>
+    <text x="485" y="65">Evaluator</text>
+    <rect x="620" y="30" width="130" height="60" rx="8" fill="#0A173A" stroke="#02ABC1"/>
+    <text x="635" y="65">Reporter</text>
+    <path d="M150 60 L170 60" stroke="#02ABC1"/><path d="M300 60 L320 60" stroke="#02ABC1"/>
+    <path d="M450 60 L470 60" stroke="#02ABC1"/><path d="M600 60 L620 60" stroke="#02ABC1"/>
+  </g>
+</svg>

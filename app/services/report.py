@@ -65,6 +65,7 @@ def build_pdf_report(run_dir: Path) -> Path:
       <body>
         <h1>PerceptionLab Report</h1>
         <p>Run directory: {run_dir}</p>
+        <img src='{(Path.cwd() / 'ui' / 'assets' / 'pipeline.svg').as_posix()}' style='max-width: 90%;'/>
         <h2>Metrics</h2>
         <pre>{json.dumps(metrics_json, indent=2)}</pre>
         <h3>Metrics Table</h3>

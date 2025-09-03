@@ -277,7 +277,8 @@ segmentation:
   provider: hf
   model: "nvidia/segformer-b0-finetuned-ade-512-512"
 ocr:
-  provider: gcv               # gcv | azure | textract | replicate:paddleocr
+  provider: replicate         # replicate:paddleocr (set version) | gcv | azure | textract
+  version: "paddleocr-version-hash"
 tracking:
   provider: bytetrack         # local CPU-friendly tracking
 llm_notes:
@@ -341,6 +342,23 @@ Click “Interview Mode” in the Run tab. The sequence loads the curated clip, 
 ---
 
 ## Data preparation (tiny and legal)
+
+---
+
+## Use Cases (pre‑packaged screens)
+
+- Roadway Traffic & Sign Intelligence: filter to signs/lights, extract OCR, and compare profiles.
+- Warehouse Safety & PPE: draw safety zones; count people in‑zone.
+- Retail Shelf QA (OCR): extract price/label text and download CSV.
+- Smart City Anomaly & Flow: live FPS/latency charts and spike frames.
+- Agriculture Field Scan: vegetation heat overlay and obstacle highlight.
+
+---
+
+## Provider keys for segmentation/OCR
+
+- Segmentation (HF endpoint): set `HF_API_TOKEN` and `HF_SEG_ENDPOINT` for real masks; otherwise, soft masks derive from boxes for visualization.
+- OCR (Replicate PaddleOCR): set `REPLICATE_API_TOKEN` and a `version` in `providers.yaml`.
 
 PerceptionLab expects two 10–15 s clips and a small COCO labels file. To trim videos locally with ffmpeg:
 

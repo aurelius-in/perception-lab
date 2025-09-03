@@ -6,7 +6,8 @@ segmentation:
   provider: hf
   model: "nvidia/segformer-b0-finetuned-ade-512-512"
 ocr:
-  provider: gcv
+  provider: replicate
+  version: "paddleocr-version-hash"
 tracking:
   provider: bytetrack
 llm_notes:

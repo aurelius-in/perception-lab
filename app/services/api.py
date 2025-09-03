@@ -18,6 +18,7 @@ from app.utils.viz import draw_boxes, draw_track_ids, overlay_soft_masks, draw_o
 from app.utils.timing import StageTimer, timed
 from app.providers.tracking.bytetrack import SimpleTracker
 from app.providers.segmentation.hf import HfSegmentation
+from app.providers.ocr.replicate_paddleocr import ReplicatePaddleOcr
 
 
 app = FastAPI(title="Perception Ops Lab API", version="0.1.0")
@@ -95,9 +96,19 @@ def run_frame(req: RunFrameRequest) -> dict:
         except Exception:
             pass
         vis = draw_track_ids(vis, tracks)
-        # OCR labels placeholder draw (no real OCR yet)
+        # OCR labels if configured (Replicate PaddleOCR)
+        ocr_items = []
         try:
-            vis = draw_ocr_labels(vis, [])
+            ocr = providers.get("ocr", {})
+            ocr_provider = ocr.get("provider", "gcv")
+            if req.provider_override and isinstance(req.provider_override, dict):
+                ocr = req.provider_override.get("ocr", ocr)
+                ocr_provider = ocr.get("provider", ocr_provider)
+            if str(ocr_provider).startswith("replicate"):
+                version = ocr.get("version", "")
+                if version:
+                    ocr_items = ReplicatePaddleOcr(version=version).infer(req.image_b64)
+            vis = draw_ocr_labels(vis, ocr_items)
         except Exception:
             pass
         ok, buf = cv2.imencode(".jpg", vis)
@@ -134,7 +145,7 @@ def run_frame(req: RunFrameRequest) -> dict:
         "boxes": boxes,
         "masks": [],
         "tracks": tracks,
-        "ocr": [],
+        "ocr": ocr_items if 'ocr_items' in locals() else [],
         "timings": {
             "model": round(timer.timings_ms.get("model", 0.0), 2),
         },
