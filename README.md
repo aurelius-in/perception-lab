@@ -193,6 +193,50 @@ streamlit run ui/streamlit_app.py --server.port 8501
 
 ## Using PerceptionLab
 
+### Scenarios (curated clips)
+
+<p>
+<strong>Day</strong><br/>
+Urban signage<br/>
+Daylight urban, clear signs.<br/>
+<img src="assets/day.gif" alt="Day urban signage" width="420"/>
+</p>
+
+<p>
+<strong>Night</strong><br/>
+Highway<br/>
+Night highway, glare check.<br/>
+<img src="assets/night.gif" alt="Night highway" width="420"/>
+</p>
+
+<p>
+<strong>Rain</strong><br/>
+Adverse weather<br/>
+Rainy road, low contrast.<br/>
+<img src="assets/rain.gif" alt="Rain adverse weather" width="420"/>
+</p>
+
+<p>
+<strong>Tunnel</strong><br/>
+Lighting transition<br/>
+Tunnel, bright→dark shift.<br/>
+<img src="assets/tunnel.gif" alt="Tunnel lighting transition" width="420"/>
+</p>
+
+<p>
+<strong>Snow</strong><br/>
+Winter road<br/>
+Snowy road, low contrast.<br/>
+<img src="assets/snow.gif" alt="Snow winter road" width="420"/>
+</p>
+
+<p>
+<strong>Pedestrians</strong><br/>
+Crosswalk<br/>
+Busy crosswalk, pedestrians.<br/>
+<img src="assets/pedestrians.gif" alt="Pedestrians crosswalk" width="420"/>
+</p>
+
 **Run tab**  
 Pick a clip and a profile. Watch boxes, soft masks, track IDs with comet tails, and OCR labels. Toggle overlays, filter classes, adjust mask opacity, confidence and NMS. A HUD shows FPS and per‑stage latency; the event log is one click away. Use provider overrides for single‑frame detection, and export side‑by‑side via the compare slider.
 
