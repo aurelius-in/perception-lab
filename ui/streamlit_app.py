@@ -21,7 +21,10 @@ def inject_base_styles() -> None:
         """
         <style>
         /* App background */
-        .stApp { background-color: #060E26; }
+        .stApp { background-color: #060F25; }
+        /* Remove default top gaps so banner is flush */
+        [data-testid="stHeader"] { display: none; }
+        .block-container { padding-top: 0 !important; }
 
         /* Headings color */
         h1, h2, h3, h4, h5, h6 { color: #02ABC1 !important; }
@@ -29,16 +32,17 @@ def inject_base_styles() -> None:
         /* Top banner */
         .top-banner {
             width: 100%;
-            background-color: #060E26;
+            background-color: #060F25;
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 8px 0 12px 0;
+            padding: 0;
+            margin: 0;
         }
-        .top-banner img { max-height: 64px; }
+        .top-banner img { max-height: 192px; display: block; }
         .stButton>button { transition: all 200ms ease-in-out; border-radius: 8px; }
         .card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); padding: 12px 14px; border-radius: 10px; }
-        .sticky-hud { position: sticky; top: 6px; z-index: 100; background: rgba(6,14,38,0.85); backdrop-filter: blur(4px); padding: 6px 10px; border-radius: 8px; border: 1px solid rgba(2,171,193,0.2); }
+        .sticky-hud { position: sticky; top: 6px; z-index: 100; background: rgba(6,15,37,0.85); backdrop-filter: blur(4px); padding: 6px 10px; border-radius: 8px; border: 1px solid rgba(2,171,193,0.2); }
 
         /* Centering helpers */
         .center { display: flex; align-items: center; justify-content: center; }
@@ -49,37 +53,87 @@ def inject_base_styles() -> None:
         /* Tabs: larger, distinct, high-contrast */
         .stTabs { margin-top: 6px; }
         .stTabs [data-baseweb="tab-list"] {
-            gap: 10px;
+            display: flex;
+            gap: 14px;
+            justify-content: space-between;
             border-bottom: 1px solid rgba(255,255,255,0.08);
-            padding-bottom: 6px;
+            padding-bottom: 8px;
         }
         .stTabs [data-baseweb="tab"] {
             font-family: "Segoe UI", "Inter", system-ui, -apple-system, sans-serif;
-            font-weight: 700;
-            font-size: 1.25rem; /* larger */
-            letter-spacing: 0.02em;
+            font-weight: 800;
+            font-size: 1.45rem; /* larger */
+            letter-spacing: 0.015em;
             color: #cfeaf0;
-            padding: 10px 16px;
-            border-radius: 12px 12px 0 0;
+            padding: 14px 20px;
+            border-radius: 14px 14px 0 0;
             background: rgba(255,255,255,0.04);
-            border: 1px solid rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.12);
             box-shadow: 0 2px 4px rgba(0,0,0,0.15) inset;
             transition: all 160ms ease-in-out;
+            flex: 1 1 0;
+            text-align: center;
+            min-width: 0;
         }
         .stTabs [data-baseweb="tab"]:hover {
             color: #e6fbfe;
             background: rgba(2,171,193,0.12);
-            border-color: rgba(2,171,193,0.25);
+            border-color: rgba(2,171,193,0.35);
         }
         .stTabs [aria-selected="true"] {
             color: #02ABC1 !important;
             background: linear-gradient(180deg, rgba(2,171,193,0.22), rgba(2,171,193,0.06));
-            border-color: rgba(2,171,193,0.45);
-            box-shadow: 0 0 0 1px rgba(2,171,193,0.25), 0 8px 18px rgba(2,171,193,0.12);
+            border-color: rgba(2,171,193,0.55);
+            box-shadow: 0 0 0 1px rgba(2,171,193,0.35), 0 8px 18px rgba(2,171,193,0.16);
         }
         .stTabs [data-baseweb="tab"]:focus-visible {
             outline: none;
             box-shadow: 0 0 0 2px rgba(2,171,193,0.55);
+        }
+
+        /* Hide image fullscreen popout control */
+        div[data-testid="stImage"] button { display: none !important; }
+
+        /* GIF grid and cards: responsive, full-width, wrap to second row if needed */
+        .gif-grid { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; width: 100%; }
+        .gif-card {
+            background: rgba(0,0,0,0.35);
+            border: 1px solid #ffffff;
+            border-radius: 8px;
+            padding: 8px;        /* inner padding */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: clamp(200px, 16.5vw, 300px);
+        }
+        .gif-card img { display: block; width: 100%; height: auto; }
+        .gif-card .gif-cap { color: #cfeaf0; font-size: 12px; margin-top: 8px; }
+        .gif-card .gif-fn { color: #9fc7ce; font-size: 12px; margin-top: 6px; word-break: break-all; text-align: center; }
+        .gif-card .gif-desc { color: #8fbac0; font-size: 11px; margin-top: 4px; text-align: center; }
+
+        /* Carousel arrows - larger, adjacent to card */
+        .arrow-col button {
+            font-size: 36px !important;
+            padding: 18px 14px !important;
+            height: 100% !important;
+            width: 100% !important;
+        }
+        .gif-card .gif-desc { color: #9fc7ce; font-size: 12px; margin-top: 6px; text-align: center; }
+
+        /* Soft edge fade and transparency for logos */
+        .splash-logo {
+            width: 70vw;
+            max-width: 1600px;
+            opacity: 0.8;
+            /* Deeper, softer fade */
+            -webkit-mask-image: radial-gradient(circle at 50% 50%, rgba(0,0,0,1) 35%, rgba(0,0,0,0.5) 60%, rgba(0,0,0,0.25) 80%, rgba(0,0,0,0) 100%);
+                    mask-image: radial-gradient(circle at 50% 50%, rgba(0,0,0,1) 35%, rgba(0,0,0,0.5) 60%, rgba(0,0,0,0.25) 80%, rgba(0,0,0,0) 100%);
+        }
+        .banner-logo {
+            max-height: 192px;
+            opacity: 0.85;
+            -webkit-mask-image: radial-gradient(circle at 50% 50%, rgba(0,0,0,1) 50%, rgba(0,0,0,0.45) 75%, rgba(0,0,0,0.18) 90%, rgba(0,0,0,0) 100%);
+                    mask-image: radial-gradient(circle at 50% 50%, rgba(0,0,0,1) 50%, rgba(0,0,0,0.45) 75%, rgba(0,0,0,0.18) 90%, rgba(0,0,0,0) 100%);
         }
         </style>
         """,
@@ -87,13 +141,23 @@ def inject_base_styles() -> None:
     )
 
 
-def show_splash(logo_path: Path, duration_seconds: float = 1.8) -> None:
+def show_splash(logo_path: Path, duration_seconds: float = 10.0) -> None:
+    import base64
     placeholder = st.empty()
     with placeholder.container():
-        st.markdown("""<div class='center' style='height: 80vh'></div>""", unsafe_allow_html=True)
-        col_left, col_center, col_right = st.columns([1, 2, 1])
-        with col_center:
-            st.image(str(logo_path), use_column_width=False)
+        try:
+            b64 = base64.b64encode(logo_path.read_bytes()).decode("utf-8")
+            img_src = f"data:image/gif;base64,{b64}"
+        except Exception:
+            img_src = ""
+        st.markdown(
+            f"""
+            <div class='center' style='height: 90vh; background-color: #060F25;'>
+              <img class="splash-logo" src="{img_src}" alt="PerceptionLab" />
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
     time.sleep(duration_seconds)
     placeholder.empty()
 
@@ -108,7 +172,7 @@ def render_top_banner(logo_path: Path) -> None:
     st.markdown(
         f"""
         <div class="top-banner">
-            <img src="{src}" alt="PerceptionLab" />
+            <img class="banner-logo" src="{src}" alt="PerceptionLab" />
         </div>
         """,
         unsafe_allow_html=True,
@@ -116,7 +180,7 @@ def render_top_banner(logo_path: Path) -> None:
 
 
 def main() -> None:
-    st.set_page_config(page_title="Perception Ops Lab", layout="wide")
+    st.set_page_config(page_title="Perception Ops Lab", layout="wide", initial_sidebar_state="collapsed")
 
     inject_base_styles()
 
@@ -158,6 +222,21 @@ def main() -> None:
     st.markdown(
         """
         <script>
+        // Add tooltip to the sidebar toggle button
+        function setSidebarToggleTitle(){
+          const candidates = [
+            document.querySelector('button[aria-label="Main menu"]'),
+            document.querySelector('button[title]'),
+            document.querySelector('[data-testid="collapsedControl"] button'),
+            document.querySelector('header button')
+          ].filter(Boolean);
+          if (candidates.length > 0) {
+            candidates[0].setAttribute('title', 'Advanced Settings');
+          }
+        }
+        document.addEventListener('DOMContentLoaded', setSidebarToggleTitle);
+        setTimeout(setSidebarToggleTitle, 1000);
+
         document.addEventListener('keydown', function(e) {
           if (e.code === 'Space') { console.log('Toggle play/pause (stub)'); e.preventDefault(); }
           if (e.code === 'ArrowLeft') { console.log('Seek backward (stub)'); }
@@ -184,56 +263,76 @@ def main() -> None:
     api_base = st.session_state.api_base
 
     tab_run, tab_eval, tab_metrics, tab_reports, tab_fusion, tab_use_cases = st.tabs(
-        ["Run", "Evaluate", "Metrics", "Reports", "Fusion", "Use Cases"]
+        ["Scenarios", "Evaluate", "Metrics", "Reports", "Fusion", "Use Cases"]
     )
 
     with tab_run:
-        st.subheader("Run")
-        col1, col2, col3 = st.columns([2, 1, 1])
-        with col1:
-            # GIF previews + radio selector
-            assets_dir = Path(__file__).resolve().parents[1] / "assets"
-            st.session_state.setdefault("video_choice", "data/samples/day.mp4")
+        # Carousel: one scenario card at a time with arrows
+        assets_dir = Path(__file__).resolve().parents[1] / "assets"
+        scenarios = [
+            {"gif": "day.gif", "mp4": "data/samples/day.mp4", "name": "day.gif", "desc": "Day — Urban signage: Daylight urban, clear signs."},
+            {"gif": "night.gif", "mp4": "data/samples/night.mp4", "name": "night.gif", "desc": "Night — Highway: Night highway, glare check."},
+            {"gif": "rain.gif", "mp4": "data/samples/rain.mp4", "name": "rain.gif", "desc": "Rain — Adverse weather: Rainy road, low contrast."},
+            {"gif": "tunnel.gif", "mp4": "data/samples/tunnel.mp4", "name": "tunnel.gif", "desc": "Tunnel — Lighting transition: Tunnel, bright→dark shift."},
+            {"gif": "snow.gif", "mp4": "data/samples/snow.mp4", "name": "snow.gif", "desc": "Snow — Winter road: Snowy road, low contrast."},
+            {"gif": "pedestrians.gif", "mp4": "data/samples/pedestrians.mp4", "name": "pedestrians.gif", "desc": "Pedestrians — Crosswalk: Busy crosswalk, pedestrians."},
+        ]
+        st.session_state.setdefault("scenario_idx", 0)
+        st.session_state.setdefault("video_choice", scenarios[0]["mp4"])
 
-            pc1, pc2 = st.columns(2)
-            with pc1:
-                _day = assets_dir / "day.gif"
-                if _day.exists():
-                    st.image(str(_day), width=300, caption="Day (15s)")
-                if st.button("Select Day", key="btn_day"):
-                    st.session_state["video_choice"] = "data/samples/day.mp4"
-            with pc2:
-                _night = assets_dir / "night.gif"
-                if _night.exists():
-                    st.image(str(_night), width=300, caption="Night (20s)")
-                if st.button("Select Night", key="btn_night"):
-                    st.session_state["video_choice"] = "data/samples/night.mp4"
+        pad_l, nav_l, card_col, nav_r, pad_r = st.columns([3, 1, 6, 1, 3])
+        with nav_l:
+            st.markdown('<div class="arrow-col">', unsafe_allow_html=True)
+            if st.button("◀", key="carousel_prev"):
+                st.session_state["scenario_idx"] = (st.session_state["scenario_idx"] - 1) % len(scenarios)
+            st.markdown('</div>', unsafe_allow_html=True)
+        with nav_r:
+            st.markdown('<div class="arrow-col">', unsafe_allow_html=True)
+            if st.button("▶", key="carousel_next"):
+                st.session_state["scenario_idx"] = (st.session_state["scenario_idx"] + 1) % len(scenarios)
+            st.markdown('</div>', unsafe_allow_html=True)
 
-            video = st.radio(
-                "Video",
-                options=["data/samples/day.mp4", "data/samples/night.mp4"],
-                horizontal=True,
-                key="video_choice",
-            )
-        with col2:
-            profile = st.radio("Profile", options=["realtime", "accuracy"], horizontal=True, index=0)
-        with col3:
-            c1, c2, c3 = st.columns([1, 1, 1])
-            with c1:
-                start = st.button("▶", key="start_btn", help="Start")
-            with c2:
-                pause = st.button("⏸", key="pause_btn", help="Pause")
-            with c3:
-                reset = st.button("⟲", key="reset_btn", help="Reset")
+        with card_col:
+            idx = int(st.session_state["scenario_idx"]) % len(scenarios)
+            item = scenarios[idx]
+            gif_path = assets_dir / item["gif"]
+            if gif_path.exists():
+                import base64 as _b64
+                b64 = _b64.b64encode(gif_path.read_bytes()).decode("utf-8")
+                st.markdown(
+                    f"""
+                    <div class=\"gif-grid\">\
+                      <div class=\"gif-card\">\
+                        <div class=\"gif-desc\">{item['desc']}</div>
+                        <img src=\"data:image/gif;base64,{b64}\" />
+                        <div class=\"gif-fn\">{item['name']}</div>
+                      </div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+            # Select Clip button inside the card
+            if st.button("Select Clip", key=f"select_clip_{idx}"):
+                st.session_state["video_choice"] = item["mp4"]
+                st.toast(f"Selected {item['mp4']}", icon="✅")
 
         with st.expander("Overlays & thresholds", expanded=True):
-            ol1, ol2, ol3 = st.columns(3)
+            ol1, ol2, ol3, ol4 = st.columns([1, 1, 1, 2])
             with ol1:
                 show_boxes = st.checkbox("Boxes", value=True)
             with ol2:
                 show_tracks = st.checkbox("Tracks", value=True)
             with ol3:
                 show_ocr = st.checkbox("OCR", value=True)
+            with ol4:
+                profile = st.radio(
+                    "",
+                    options=["realtime", "accuracy"],
+                    horizontal=True,
+                    index=0,
+                    label_visibility="collapsed",
+                    key="profile_mode",
+                )
             mask_opacity = st.slider("Mask opacity", 0.0, 1.0, 0.35, 0.05, help="Transparency of segmentation overlays")
             colt1, colt2 = st.columns(2)
             with colt1:
@@ -279,8 +378,7 @@ def main() -> None:
             except Exception as e:
                 log_box.warning(f"WS error: {e}")
 
-        if start:
-            threading.Thread(target=_run_ws, daemon=True).start()
+        # Auto-start behavior removed per request to simplify controls
 
         st.markdown("---")
         st.subheader("Quick actions")
