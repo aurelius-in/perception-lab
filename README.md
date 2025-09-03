@@ -1,38 +1,48 @@
 
+<p align="center">
+  <img src="assets/pl-ani.gif" alt="PerceptionLab" width="220" />
+</p>
+
 # PerceptionLab
 
-**PerceptionLab** is a Python-first, agentic perception and evaluation stack for real-time detection, segmentation, tracking, OCR, and LiDAR-to-camera fusion. It provides cloud inference adapters, FastAPI services, structured logging, Prometheus/Grafana observability, COCO-style metrics, and one-click PDF reporting. Built to showcase backend engineering, reliability, and production readiness.
+**PerceptionLab** is a Python-first, agentic perception and evaluation stack for real-time detection, segmentation, tracking, OCR, and LiDAR-to-camera fusion. It favors **repeatability, observability, and clear reporting** so perception work can be inspected, compared, and improved without heavy local setup.
+
+## Why this exists
+
+- Perception systems need **fast feedback**. PerceptionLab runs short sequences with consistent configs so changes are measurable rather than anecdotal.  
+- Teams need **evidence, not screenshots**. The stack produces metrics, latency distributions, and a compact PDF that captures what happened, how it ran, and with which settings.  
+- Environments vary. **Cloud adapters** keep the footprint small while allowing model swaps behind a stable interface.  
+- Field issues rarely happen on a developer laptop. **Structured logs + Prometheus/Grafana** make behavior visible and debuggable.
 
 ## Highlights
 
-- **Agentic orchestration** with a Planner → Curator → Runner → Evaluator → Observability → Reporter workflow  
-- **Real-time pipelines** with two profiles: `realtime` and `accuracy`  
-- **Cloud adapters** for detectors, segmenters, and OCR to keep local footprint small  
-- **Tracking** with ByteTrack or Norfair using detector outputs  
-- **Evaluation** on a compact labeled subset: mAP@0.5, mean IoU, IDF1, OCR accuracy  
-- **Observability** via structured JSON logs, Prometheus metrics, and a Grafana dashboard  
-- **Reporting** through a PDF artifact including latency plots, metrics tables, and annotated frames  
-- **Fusion viewer** renders a single KITTI frame projected from LiDAR to RGB  
-- **Production hygiene**: Docker Compose, CI + tests, typed interfaces, clean configs
+- **Agentic orchestration**: Planner → Curator → Runner → Evaluator → Observability → Reporter. Re-run the same plan and get the same artifacts.  
+- **Two operating profiles**: `realtime` for throughput and `accuracy` for fidelity; a UI slider compares outputs frame-for-frame.  
+- **Cloud inference adapters** for detectors/segmenters/OCR; local **ByteTrack/Norfair** for tracking.  
+- **Compact evaluation** on a small labeled subset: COCO mAP@0.5, mean IoU, IDF1, and OCR accuracy.  
+- **Observability by default**: structured JSON logs per frame, Prometheus metrics, and a prewired Grafana dashboard.  
+- **One-click PDF report**: pipeline diagram, metrics tables, latency histograms, and three annotated frames.  
+- **Fusion viewer**: a single KITTI frame projects LiDAR points onto RGB to verify calibration logic.  
+- **Production hygiene**: FastAPI contracts, typed adapters, Docker Compose, CI + unit tests.
 
-> Intentional emphasis on backend engineering and architecture. The UI exists to visualize outputs and system health.
+> Intentional emphasis on reliability and measurement. The UI exists to visualize outputs and system health.
 
 ---
 
-## Skills Coverage (mapped to typical Perception CV/ML roles)
+## What it handles
 
-| Capability sought | Where it lives in PerceptionLab |
+| Need | Where it lives |
 |---|---|
-| Detection, segmentation, tracking, OCR | `app/providers/*`, `pipelines/video_pipeline.py`, `tracking/` |
-| Real-time constraints, performance | Profiles, timing utilities, Prometheus histograms, FPS chart |
-| Multi-sensor awareness | `pipelines/fusion_projection.py` (KITTI LiDAR → camera) |
-| Python services, clean interfaces | FastAPI in `app/services/api.py`, typed adapters |
-| Data & evaluation pipeline | `agents/evaluator.py`, COCO subset, metrics JSON + plots |
-| Logging, auditability | JSON logs per frame, run registry, `report.pdf` |
-| Error handling, recovery | Adapter retries, fallbacks, anomaly flags |
-| CI/CD & testing | `.github/workflows/ci.yml`, `tests/` unit tests |
-| ROS, edge readiness | ROS topic schema stub, TensorRT/Jetson notes, ONNX toggle |
-| Cloud (AWS/Azure/GCP) | OCR and LLM notes adapters, detection/seg endpoints |
+| Understand the scene (detect/segment/track/read) | `app/providers/*`, `pipelines/video_pipeline.py`, `tracking/` |
+| Operate under time & resource limits | profile configs, timing utilities, Prometheus histograms, FPS chart |
+| Integrate multiple modalities | `pipelines/fusion_projection.py` (KITTI LiDAR → camera) |
+| Ship services with clear interfaces | FastAPI in `app/services/api.py`, typed adapters and schemas |
+| Evaluate consistently | `agents/evaluator.py`, COCO subset, `metrics.json` + plots |
+| Keep runs auditable | per-frame JSON logs, run registry, `report.pdf` with provenance |
+| Degrade gracefully | adapter retries, fallbacks, anomaly flags in Observability agent |
+| Automate hygiene | `.github/workflows/ci.yml`, `tests/` unit tests |
+| Prepare for robotics/edge | ROS topic schema stub, ONNX/TensorRT notes, Jetson profile hints |
+| Work across cloud vendors | adapters for OCR and inference endpoints (AWS/Azure/GCP/Replicate/HF) |
 
 ---
 
@@ -52,7 +62,7 @@
 
 ---
 
-## Project Structure
+## Project structure
 
 ```
 perceptionlab/
@@ -123,13 +133,11 @@ perceptionlab/
 
 ### 2) Environment
 
-Copy and edit env vars:
-
 ```bash
 cp .env.example .env
 ```
 
-`.env.example` includes optional keys:
+Fill only the providers you plan to use:
 
 ```
 REPLICATE_API_TOKEN=
@@ -145,14 +153,12 @@ AZURE_OPENAI_ENDPOINT=
 AZURE_OPENAI_KEY=
 ```
 
-### 3) Configure providers and profiles
+### 3) Configure adapters and profiles
 
-Edit `app/configs/providers.yaml` to select adapters and models.  
-Edit `app/configs/profiles/{realtime.yaml,accuracy.yaml}` for thresholds and rendering.
+- `app/configs/providers.yaml` selects detection/seg/OCR providers and models  
+- `app/configs/profiles/{realtime.yaml,accuracy.yaml}` define thresholds and rendering
 
-### 4) Data setup
-
-Prepare two short clips and a tiny labeled subset:
+### 4) Minimal data pack
 
 ```
 data/
@@ -162,7 +168,7 @@ data/
   kitti_frame/{image.png, points.bin, calib.txt}   # single-frame fusion
 ```
 
-> Use open driving datasets like BDD100K, Cityscapes, KITTI, nuScenes mini, or CARLA renders. Only include content you are permitted to use.
+Use open sources (BDD100K, Cityscapes, KITTI, nuScenes mini, CARLA). Only include content you’re allowed to use.
 
 ### 5) Run with Docker Compose
 
@@ -170,12 +176,12 @@ data/
 docker compose up --build
 ```
 
-- UI at http://localhost:8501  
-- API at http://localhost:8000  
-- Prometheus at http://localhost:9090  
-- Grafana at http://localhost:3000
+- UI → http://localhost:8501  
+- API → http://localhost:8000  
+- Prometheus → http://localhost:9090  
+- Grafana → http://localhost:3000
 
-### 6) Local run (without Docker)
+### 6) Local run
 
 ```bash
 python -m venv .venv && source .venv/bin/activate
@@ -188,46 +194,35 @@ streamlit run ui/streamlit_app.py --server.port 8501
 
 ## Using PerceptionLab
 
-### Run tab
+**Run tab**  
+Pick a clip and a profile. Watch boxes, masks, track IDs with short tails, and OCR overlays. A small panel shows FPS and per-stage latency. Expand the latest JSON event to inspect exact outputs.
 
-- Select `day.mp4` or `night.mp4` and a profile `realtime` or `accuracy`
-- Start processing to see boxes, masks, track IDs with short “comet tails” and OCR overlays
-- A mini panel shows FPS and per-stage latency
-- An expander reveals the last structured JSON event
+**Evaluate tab**  
+Select the labeled subset and tasks. See mAP@0.5, mean IoU, IDF1, and OCR accuracy with small plots.
 
-### Evaluate tab
+**Metrics tab**  
+Prometheus metrics are exported by the API. Grafana shows latency histograms and FPS trends.
 
-- Choose the labeled COCO subset and tasks to evaluate  
-- View mAP@0.5, mean IoU, IDF1, OCR accuracy with small plots
+**Reports tab**  
+Generate `runs/<id>/report.pdf`. The report includes provenance, metrics, latency plots, and three annotated frames.
 
-### Metrics tab
-
-- Prometheus metrics are exported by the API  
-- Open Grafana to view latency histograms and FPS trends
-
-### Reports tab
-
-- Click Generate to create `runs/<id>/report.pdf`  
-- The report includes metrics tables, latency plots, and three annotated frames
-
-### Fusion tab
-
-- Visualize a single KITTI frame with LiDAR points projected to the RGB image
+**Fusion tab**  
+Visualize a single KITTI frame with LiDAR points projected onto the RGB image.
 
 ---
 
-## Agentic Workflow
+## Agentic workflow
 
-- **PlannerAgent** reads configs and produces a `run_plan.json`  
-- **DataCuratorAgent** validates presence of clips and labels and prepares a `data_manifest.json`  
-- **RunnerAgent** executes the pipeline frame by frame and writes structured logs  
-- **EvaluatorAgent** computes metrics and saves `metrics.json` and plots  
+- **PlannerAgent** reads configs and drafts a `run_plan.json`  
+- **DataCuratorAgent** validates inputs and emits a `data_manifest.json`  
+- **RunnerAgent** executes the pipeline frame-by-frame and writes structured logs  
+- **EvaluatorAgent** computes metrics and saves `metrics.json` + plots  
 - **ObservabilityAgent** exports Prometheus metrics and flags anomalies  
-- **ReportAgent** compiles a PDF with provenance, metrics, plots, and annotated frames
+- **ReportAgent** compiles a compact PDF with provenance and visuals
 
 ---
 
-## API Contracts
+## API contracts
 
 ```http
 POST /run_frame
@@ -319,8 +314,6 @@ render:
 
 ## Testing and CI
 
-Run tests:
-
 ```bash
 pytest -q
 ```
@@ -331,11 +324,11 @@ A GitHub Actions workflow runs lint, type checks, and unit tests on push and pul
 
 ## Extending PerceptionLab
 
-- Add a new detector or segmenter by implementing the provider adapter interface  
-- Swap OCR providers in `providers.yaml`  
-- Connect internal models by exposing them behind the same adapter contract  
-- Expand the labeled subset to refine metric fidelity  
-- Replace the UI with a React client that calls the same FastAPI contracts
+- Implement an adapter to add a new detector or segmenter  
+- Swap OCR providers in `providers.yaml` without touching the pipeline  
+- Expose internal models behind the same contract to compare outputs fairly  
+- Expand the labeled subset to increase metric fidelity  
+- Replace the Streamlit UI with a React client that calls the same contracts
 
 ---
 
@@ -357,11 +350,4 @@ MIT. See `LICENSE` for details.
 
 ## Acknowledgments
 
-- COCO API, ByteTrack, SegFormer/DeepLab, PaddleOCR  
-- Prometheus and Grafana  
-- KITTI, BDD100K, Cityscapes, nuScenes mini, and CARLA for publicly available research data
-
----
-
-**GitHub Topics**  
-`computer-vision` `perception` `agentic-ai` `langgraph` `fastapi` `docker-compose` `prometheus` `grafana` `coco` `object-detection` `segmentation` `tracking` `ocr` `sensor-fusion` `lidar` `ros` `onnx` `tensorrt` `aws` `azure` `gcp` `replicate` `huggingface` `evaluation` `observability` `logging`
+COCO API, ByteTrack, SegFormer/DeepLab, PaddleOCR, Prometheus, Grafana, and open research datasets (KITTI, BDD100K, Cityscapes, nuScenes mini, CARLA).
