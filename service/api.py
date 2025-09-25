@@ -21,6 +21,25 @@ except Exception:  # pragma: no cover - optional at runtime
 
 app = FastAPI(title="PerceptionLab Service", version="1.0.0")
 
+# Optional OpenTelemetry tracing setup
+try:  # pragma: no cover - optional
+    import os
+    from opentelemetry import trace  # type: ignore
+    from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter  # type: ignore
+    from opentelemetry.sdk.resources import Resource  # type: ignore
+    from opentelemetry.sdk.trace import TracerProvider  # type: ignore
+    from opentelemetry.sdk.trace.export import BatchSpanProcessor  # type: ignore
+
+    otlp_endpoint = os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT")
+    if otlp_endpoint:
+        resource = Resource.create({"service.name": "perceptionlab-service"})
+        provider = TracerProvider(resource=resource)
+        processor = BatchSpanProcessor(OTLPSpanExporter(endpoint=otlp_endpoint))
+        provider.add_span_processor(processor)
+        trace.set_tracer_provider(provider)
+except Exception:
+    pass
+
 
 origins = []
 try:
