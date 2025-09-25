@@ -1,4 +1,6 @@
 from typing import Dict
+from pathlib import Path
+import json
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -36,8 +38,12 @@ def healthz() -> Dict[str, str]:
 
 @app.post("/v1/ingest")
 def ingest(dataset: DatasetSpec) -> Dict[str, str]:
-    # Stub: accept and acknowledge dataset registration
-    return {"ok": "true", "dataset_id": dataset.dataset_id}
+    # Persist a simple JSONL with sections and hashes (skeleton)
+    out_dir = Path("ingest_store") / dataset.dataset_id
+    out_dir.mkdir(parents=True, exist_ok=True)
+    meta_path = out_dir / "dataset.json"
+    meta_path.write_text(json.dumps(dataset.dict(), indent=2), encoding="utf-8")
+    return {"ok": "true", "dataset_id": dataset.dataset_id, "path": str(out_dir)}
 
 
 @app.post("/v1/eval", response_model=ResultCard)
