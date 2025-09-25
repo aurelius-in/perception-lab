@@ -29,6 +29,16 @@
 - **Fusion viewer**: a single KITTI frame projects LiDAR points onto RGB to evidence calibration literacy.  
 - **Production hygiene**: clean FastAPI contracts (REST + WebSocket), Docker Compose, CI + tests, typed adapters.
 
+### Platform hardening (new)
+- Serving: KServe `InferenceService` and Argo Rollouts canary strategy
+- GitOps: Argo CD app + overlays (`dev`, `staging`, `prod`)
+- Supply chain: SBOM (Syft), image scanning (Grype), signing (Cosign)
+- Policy gates: OPA/Conftest checks (no :latest, labels, resource limits)
+- Ingestion: PDF loader, page chunker, normalized text hashing, JSONL store
+- Evals harness: runners skeleton + reports directory structure
+- Red-team: weekly CI + minimal harness
+- Observability: optional OTLP tracing, Prometheus `/metrics`
+
 > Intentional emphasis on reliability and measurement. The UI exists to visualize outputs and system health.
 
 ---
@@ -195,6 +205,20 @@ python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 uvicorn app.services.api:app --host 0.0.0.0 --port 8000
 streamlit run ui/streamlit_app.py --server.port 8501
+
+### 7) Platform-hardening quickstart
+
+```bash
+# Make (targets live in tools/make/Makefile)
+make -C tools/make init
+make -C tools/make build && make -C tools/make sbom && make -C tools/make sign
+make -C tools/make policy.test
+make -C tools/make deploy.dev  # requires kube context
+
+# Run ingest (local API at 8080)
+uvicorn service.api:app --port 8080 --reload
+python tools/dev/ingest_cli.py http://localhost:8080 sample-docs ./docs/sample.pdf
+```
 ```
 
 ### Offline mode
