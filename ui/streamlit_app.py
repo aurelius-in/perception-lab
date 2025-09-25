@@ -1153,18 +1153,74 @@ def main() -> None:
 
     with tab_eval:
         st.subheader("Evaluate")
+        st.caption("Ingest docs and run evals. These are optional helpers for the backend harness.")
+
+        # Ingest PDF → /v1/ingest
+        st.markdown("### Ingest PDF")
+        ds_id = st.text_input("Dataset ID", value="sample-docs", key="ingest_ds_id")
+        up_pdf = st.file_uploader("Upload PDF", type=["pdf"], key="ingest_pdf")
+        if up_pdf and st.button("Ingest PDF", key="ingest_btn"):
+            try:
+                from pathlib import Path as _P
+                _uploads = _P("ingest/uploads")
+                _uploads.mkdir(parents=True, exist_ok=True)
+                tgt = _uploads / (up_pdf.name or "doc.pdf")
+                tgt.write_bytes(up_pdf.read())
+                payload = {"dataset_id": ds_id, "uris": [str(tgt)], "metadata": {"source": "ui"}}
+                resp = requests.post(f"{api_base}/v1/ingest", json=payload, timeout=30)
+                if resp.ok:
+                    st.success(resp.json())
+                else:
+                    st.warning(f"Ingest failed: {resp.status_code}")
+            except Exception as e:
+                st.warning(f"Ingest error: {e}")
+
+        st.markdown("---")
+        st.markdown("### Run evals (stub)")
+        model_name = st.text_input("Model name", value="perception-lab", key="eval_model_name")
+        model_ver = st.text_input("Model version", value="dev", key="eval_model_ver")
+        if st.button("Run evals", key="eval_run_btn"):
+            try:
+                spec = {
+                    "run_id": None,
+                    "model_name": model_name,
+                    "model_version": model_ver,
+                    "dataset": {"dataset_id": ds_id, "uris": [], "metadata": {}},
+                    "params": {},
+                }
+                resp = requests.post(f"{api_base}/v1/eval", json=spec, timeout=30)
+                st.json(resp.json() if resp.ok else {"status": resp.status_code})
+            except Exception as e:
+                st.warning(f"Eval error: {e}")
+
+        # Surface latest local eval report (if present)
+        try:
+            from pathlib import Path as _P
+            base = _P("evals/reports")
+            if base.exists():
+                latest = sorted([p for p in base.iterdir() if p.is_dir()], reverse=True)
+                if latest:
+                    st.caption(f"Latest eval report dir: {latest[0]}")
+                    mpath = latest[0] / "metrics.json"
+                    if mpath.exists():
+                        st.code(str(mpath))
+        except Exception:
+            pass
+        # Legacy controls (kept minimal)
         dataset = st.text_input("Dataset (COCO JSON)", value="data/labels/demo_annotations.json")
         tasks = st.multiselect("Tasks", options=["det","seg","track","ocr"], default=["det"]) 
         col_e1, col_e2 = st.columns(2)
         with col_e1:
-            if st.button("Run Eval"):
+            st.caption("Legacy evaluate endpoint (if backend provides it)")
+            if st.button("Run Eval (legacy)"):
                 try:
                     resp = requests.post(f"{api_base}/evaluate", json={"dataset": dataset, "tasks": tasks}, timeout=10)
                     st.json(resp.json())
                 except Exception as e:
                     st.warning(f"API not reachable yet: {e}")
         with col_e2:
-            if st.button("Load last metrics"):
+            st.caption("Load metrics (legacy)")
+            if st.button("Load last metrics (legacy)"):
                 try:
                     m = requests.get(f"{api_base}/load_metrics", timeout=6).json()
                     st.json(m)
