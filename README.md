@@ -29,7 +29,7 @@
 - **Fusion viewer**: a single KITTI frame projects LiDAR points onto RGB to evidence calibration literacy.  
 - **Production hygiene**: clean FastAPI contracts (REST + WebSocket), Docker Compose, CI + tests, typed adapters.
 
-### Platform hardening (new)
+### Platform hardening 
 - Serving: KServe `InferenceService` and Argo Rollouts canary strategy
 - GitOps: Argo CD app + overlays (`dev`, `staging`, `prod`)
 - Supply chain: SBOM (Syft), image scanning (Grype), signing (Cosign)
@@ -429,13 +429,13 @@ A GitHub Actions workflow runs lint, type checks, and unit tests on push and pul
 
 ---
 
-## Guided walkthrough (optional)
+## Guided walkthrough
 
 An optional guided button performs a short, resilient sequence: run realtime briefly, compare profiles on one frame, surface telemetry, compute metrics, and build the PDF. On‑screen captions announce each step.
 
 ---
 
-## Data preparation (tiny and legal)
+## Data preparation
 
 ---
 
