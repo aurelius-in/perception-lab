@@ -1211,12 +1211,41 @@ def main() -> None:
     with tab_monitor:
         st.subheader("Monitor")
         st.markdown("View Prometheus metrics at `/metrics`. Grafana default: http://localhost:3000")
-        if st.button("Fetch /metrics"):
+        m1, m2 = st.columns([1,1])
+        with m1:
+            if st.button("Fetch /metrics"):
+                try:
+                    text = requests.get(f"{api_base}/metrics", timeout=5).text
+                    st.code(text)
+                except Exception as e:
+                    st.warning(f"Metrics not available yet: {e}")
+        with m2:
+            st.link_button("Open /metrics", f"{api_base}/metrics", use_container_width=True)
+
+        st.markdown("---")
+        st.subheader("Providers readiness")
+        if st.button("Refresh providers"):
             try:
-                text = requests.get(f"{api_base}/metrics", timeout=5).text
-                st.code(text)
+                pr = requests.get(f"{api_base}/health/providers", timeout=3)
+                if pr.ok:
+                    data = pr.json()
+                    # Render compact table if 'providers' mapping exists, else raw
+                    prov = data.get("providers") if isinstance(data, dict) else None
+                    if isinstance(prov, dict):
+                        rows = []
+                        for k, v in prov.items():
+                            rows.append({"provider": k, "ready": bool(v)})
+                        try:
+                            import pandas as _pd
+                            st.dataframe(_pd.DataFrame(rows), use_container_width=True, hide_index=True)
+                        except Exception:
+                            st.json(rows)
+                    else:
+                        st.json(data)
+                else:
+                    st.info("/health/providers not available.")
             except Exception as e:
-                st.warning(f"Metrics not available yet: {e}")
+                st.warning(f"Providers check failed: {e}")
         st.markdown("---")
         st.subheader("Last JSON event")
         if st.button("Fetch last event"):
