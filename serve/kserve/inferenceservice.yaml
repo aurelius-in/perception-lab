@@ -1,0 +1,16 @@
+apiVersion: serving.kserve.io/v1beta1
+kind: InferenceService
+metadata:
+  name: perception-lab
+  namespace: ml
+spec:
+  predictor:
+    pytorch:
+      storageUri: s3://models/perception-lab
+      resources:
+        requests:
+          cpu: "1"
+          memory: 2Gi
+        limits:
+          nvidia.com/gpu: "1"
+

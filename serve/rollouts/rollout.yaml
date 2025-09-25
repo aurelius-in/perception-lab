@@ -1,0 +1,36 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: perception-lab
+  namespace: ml
+spec:
+  replicas: 2
+  strategy:
+    canary:
+      steps:
+        - setWeight: 10
+        - pause: {duration: 30}
+        - setWeight: 30
+        - pause: {duration: 60}
+        - setWeight: 50
+        - pause: {duration: 120}
+  selector:
+    matchLabels:
+      app: perception-lab
+  template:
+    metadata:
+      labels:
+        app: perception-lab
+    spec:
+      containers:
+        - name: app
+          image: ghcr.io/owner/perception-lab:latest
+          ports:
+            - containerPort: 8080
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "256Mi"
+            limits:
+              memory: "512Mi"
+

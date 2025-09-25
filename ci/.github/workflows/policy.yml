@@ -1,0 +1,18 @@
+name: policy
+on:
+  pull_request:
+    branches: [ feat/platform-hardening ]
+jobs:
+  conftest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install conftest
+        run: |
+          curl -L https://github.com/open-policy-agent/conftest/releases/download/v0.50.0/conftest_0.50.0_Linux_x86_64.tar.gz | tar xz
+          sudo mv conftest /usr/local/bin
+      - name: Policy check
+        run: |
+          conftest test serve/kserve/inferenceservice.yaml -p policy/opa
+          conftest test serve/rollouts/rollout.yaml -p policy/opa
+
