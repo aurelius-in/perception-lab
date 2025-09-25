@@ -47,7 +47,8 @@ deploy.dev:
 
 .PHONY: evals
 evals:
-	@echo "Evals harness placeholder (implement in evals/harness)"
+	@echo "Running evals CLI"
+	python ../dev/evals_cli.py
 
 .PHONY: redteam.run
 redteam.run:
