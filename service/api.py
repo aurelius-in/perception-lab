@@ -4,6 +4,7 @@ import json
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import PlainTextResponse
 
 from .schemas import DatasetSpec, EvalSpec, ResultCard
 
@@ -61,6 +62,25 @@ if origins:
     )
 
 
+# Prometheus metrics (optional)
+try:  # pragma: no cover - optional at runtime
+    from prometheus_client import Counter, Gauge, Histogram, generate_latest  # type: ignore
+
+    METRIC_EVAL_COUNT = Counter("perceptionlab_eval_total", "Number of eval runs")
+    METRIC_INGEST_COUNT = Counter("perceptionlab_ingest_total", "Number of ingest requests")
+    METRIC_P95_LAT_MS = Gauge("perceptionlab_p95_latency_ms", "Reported p95 latency (ms)")
+    METRIC_COST_USD = Gauge("perceptionlab_cost_usd", "Reported cost in USD")
+    METRIC_BLOCKED = Counter("perceptionlab_blocked_attempts_total", "Number of blocked attempts")
+    METRIC_REQ_LAT = Histogram("perceptionlab_request_ms", "Request latency (ms)")
+except Exception:  # pragma: no cover
+    METRIC_EVAL_COUNT = None
+    METRIC_INGEST_COUNT = None
+    METRIC_P95_LAT_MS = None
+    METRIC_COST_USD = None
+    METRIC_BLOCKED = None
+    METRIC_REQ_LAT = None
+
+
 @app.get("/v1/healthz")
 def healthz() -> Dict[str, str]:
     return {"status": "ok"}
@@ -68,6 +88,11 @@ def healthz() -> Dict[str, str]:
 
 @app.post("/v1/ingest")
 def ingest(dataset: DatasetSpec) -> Dict[str, str]:
+    try:
+        if METRIC_INGEST_COUNT:
+            METRIC_INGEST_COUNT.inc()
+    except Exception:
+        pass
     out_dir = Path("ingest_store") / dataset.dataset_id
     out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -135,6 +160,11 @@ def ingest(dataset: DatasetSpec) -> Dict[str, str]:
 def eval_run(spec: EvalSpec) -> ResultCard:
     # Stub: return a minimal result card with provenance
     run_id = spec.run_id or "run-local"
+    try:
+        if METRIC_EVAL_COUNT:
+            METRIC_EVAL_COUNT.inc()
+    except Exception:
+        pass
     return ResultCard(
         run_id=run_id,
         model_name=spec.model_name,
@@ -145,4 +175,13 @@ def eval_run(spec: EvalSpec) -> ResultCard:
         signature=None,
     )
 
+
+@app.get("/metrics", response_class=PlainTextResponse)
+def metrics() -> str:
+    try:
+        from prometheus_client import generate_latest  # type: ignore
+
+        return generate_latest().decode("utf-8")
+    except Exception:
+        return ""
 
